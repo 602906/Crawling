@@ -80,6 +80,7 @@ async def check_qr_status(platform: str):
     result = await p.check_qr_status()
     if result.get("status") == "success":
         p._persist_session()
+        result["user"] = p.user_info
     return result
 
 
@@ -91,6 +92,7 @@ async def login_cookie(platform: str, request: Request):
     result = await p.login_cookie(cookie_str)
     if result.get("success"):
         p._persist_session()
+        result["user"] = p.user_info
     return result
 
 
@@ -103,6 +105,7 @@ async def login_phone(platform: str, request: Request):
     result = await p.login_phone(phone, code)
     if result.get("success"):
         p._persist_session()
+        result["user"] = p.user_info
     return result
 
 
@@ -182,6 +185,40 @@ async def get_play_url(platform: str, song_id: str, request: Request):
     return {"url": url}
 
 
+@app.get("/api/lyrics/{platform}/{song_id}")
+async def get_lyrics(platform: str, song_id: str, request: Request):
+    extra_str = request.query_params.get("extra", "")
+    name = request.query_params.get("name", "")
+    artist = request.query_params.get("artist", "")
+    duration = request.query_params.get("duration", "0")
+    import json as _json
+
+    extra = {}
+    if extra_str:
+        try:
+            extra = _json.loads(extra_str)
+        except Exception:
+            pass
+
+    from platforms.base import Song
+
+    song = Song(
+        id=song_id,
+        name=name,
+        artist=artist,
+        platform=platform,
+        duration=int(duration) if duration.isdigit() else 0,
+        extra=extra,
+    )
+
+    p = _get_platform(platform)
+    try:
+        lrc = await p.get_lyrics(song)
+    except Exception:
+        lrc = ""
+    return {"lyrics": lrc}
+
+
 @app.get("/api/download/{platform}/{song_id}")
 async def download_song(platform: str, song_id: str, request: Request):
     extra_str = request.query_params.get("extra", "")
@@ -223,8 +260,6 @@ async def download_song(platform: str, song_id: str, request: Request):
         dl_referer = "https://www.kugou.com/"
     elif "bilibili.com" in dl_domain or "bilivideo.com" in dl_domain or "hdslb.com" in dl_domain:
         dl_referer = "https://www.bilibili.com/"
-    elif "qq.com" in dl_domain:
-        dl_referer = "https://y.qq.com/"
     else:
         dl_referer = ""
     dl_headers = {}
@@ -324,11 +359,12 @@ async def proxy_audio(request: Request, url: str = Query(...)):
     elif "bilibili.com" in domain or "bilivideo.com" in domain or "hdslb.com" in domain:
         referer = "https://www.bilibili.com/"
     else:
-        referer = "https://y.qq.com/"
+        referer = ""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": referer,
     }
+    if referer:
+        headers["Referer"] = referer
     if "bilibili.com" in domain or "bilivideo.com" in domain or "hdslb.com" in domain:
         headers["Origin"] = "https://www.bilibili.com"
     if range_header:

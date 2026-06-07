@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="search-page">
+    <div class="search-header">
+        <div class="search-bar">
+            <input type="text" id="searchInput" class="search-input" placeholder="搜索歌曲、歌手..."
+                   onkeydown="if(event.key==='Enter')doSearch()">
+            <button class="btn btn-primary search-btn" onclick="doSearch()">搜索</button>
+        </div>
+        <div class="platform-filters">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">全部</button>
+            {% for pid, cls in platforms.items() %}
+            <button class="filter-btn" data-filter="{{ pid }}" onclick="setFilter('{{ pid }}')">
+                {{ cls.name }}
+                {% if logged_in.get(pid, False) %}
+                <span class="badge">已登录</span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="results-container" id="resultsContainer">
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">&#9835;</div>
+            <p>输入关键词开始搜索</p>
+        </div>
+        <div class="loading" id="searchLoading" style="display:none;"></div>
+        <div class="song-list" id="songList"></div>
+        <div class="pagination" id="pagination" style="display:none;"></div>
+    </div>
+</div>
+
+<div class="video-container" id="videoContainer" style="display:none;">
+    <video id="videoPlayer" controls></video>
+    <div class="speed-indicator" id="speedIndicator" style="display:none;"></div>
+    <button class="video-close" id="videoCloseBtn">&#10005;</button>
+</div>
+
+<div class="lyrics-panel" id="lyricsPanel">
+    <div class="lyrics-tab" id="lyricsTab" onclick="toggleLyrics()">&#8250;</div>
+    <div class="lyrics-header">
+        <span class="lyrics-title" id="lyricsTitle">歌词</span>
+        <button class="lyrics-close" onclick="toggleLyrics()">&#10005;</button>
+    </div>
+    <div class="lyrics-content" id="lyricsContent">
+        <p class="lyrics-empty">播放歌曲后显示歌词</p>
+    </div>
+</div>
+
+<div class="player-bar" id="playerBar" style="display:none;">
+    <div class="player-info">
+        <img class="player-cover" id="playerCover" src="" alt="">
+        <div class="player-meta">
+            <div class="player-title" id="playerTitle">-</div>
+            <div class="player-artist" id="playerArtist">-</div>
+        </div>
+    </div>
+    <div class="player-controls">
+        <button class="player-btn" onclick="prevTrack()">&#9198;</button>
+        <button class="player-btn play-btn" id="playPauseBtn" onclick="togglePlay()">&#9654;</button>
+        <button class="player-btn" onclick="nextTrack()">&#9197;</button>
+        <button class="player-btn" id="videoShowBtn" onclick="showVideo()" style="display:none;" title="显示视频">&#9634;</button>
+        <button class="player-btn speed-btn" id="speedBtn" onclick="cycleSpeed()">1x</button>
+    </div>
+    <div class="player-progress">
+        <span class="time" id="currentTime">0:00</span>
+        <input type="range" id="progressBar" class="progress-slider" min="0" max="100" value="0"
+               oninput="seekTo(this.value)">
+        <span class="time" id="totalTime">0:00</span>
+    </div>
+    <audio id="audioPlayer" preload="auto"></audio>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentFilter = 'all';
+    let currentPage = 1;
+    let currentSongs = [];
+    let playQueue = [];
+    let playIndex = -1;
+    const audio = document.getElementById('audioPlayer');
+    const video = document.getElementById('videoPlayer');
+    let currentPlayer = audio;
+    let isVideo = false;
+    let lyricsData = [];
+    let currentLyricIndex = -1;
+    let lyricsVisible = true;
+
+    function setFilter(f) {
+        currentFilter = f;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`[data-filter="${f}"]`).classList.add('active');
+    }
+
+    async function doSearch(page) {
+        const keyword = document.getElementById('searchInput').value.trim();
+        if (!keyword) return;
+        currentPage = page || 1;
+
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('searchLoading').style.display = 'flex';
+        document.getElementById('songList').innerHTML = '';
+        document.getElementById('pagination').style.display = 'none';
+
+        try {
+            const resp = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}&platform=${currentFilter}&page=${currentPage}`);
+            const data = await resp.json();
+            currentSongs = data.songs;
+            renderSongs(data.songs);
+            renderPagination(data.total, currentPage);
+
+            if (data.errors && Object.keys(data.errors).length > 0) {
+                console.warn('部分平台搜索出错:', data.errors);
+            }
+        } catch (e) {
+            document.getElementById('songList').innerHTML = `<p class="error-text">搜索出错: ${e.message}</p>`;
+        } finally {
+            document.getElementById('searchLoading').style.display = 'none';
+        }
+    }
+
+    function renderSongs(songs) {
+        const list = document.getElementById('songList');
+        if (!songs.length) {
+            list.innerHTML = '<p class="empty-text">没有找到相关歌曲</p>';
+            return;
+        }
+
+        list.innerHTML = songs.map((s, i) => `
+            <div class="song-item" data-index="${i}">
+                <div class="song-index">${(currentPage - 1) * 20 + i + 1}</div>
+                <div class="song-cover-wrap">
+                    ${s.cover ? `<img class="song-cover" src="${s.cover}" referrerpolicy="no-referrer" alt="" onerror="this.style.display='none'">` : '<div class="song-cover-placeholder"></div>'}
+                </div>
+                <div class="song-info">
+                    <div class="song-name">${escHtml(s.name)}</div>
+                    <div class="song-artist">${escHtml(s.artist)} · ${escHtml(s.album)}</div>
+                </div>
+                <div class="song-platform">
+                    <span class="platform-badge badge-${s.platform}">${platformName(s.platform)}</span>
+                </div>
+                <div class="song-duration">${formatTime(s.duration)}</div>
+                <div class="song-actions">
+                    <button class="action-btn" onclick="playSong(${i})" title="播放">&#9654;</button>
+                    ${s.platform === 'bilibili'
+                        ? `<button class="action-btn" onclick="downloadSong(${i}, 'video')" title="下载视频">&#8681;</button><button class="action-btn" onclick="downloadSong(${i}, 'audio')" title="下载音频">&#8675;</button>`
+                        : `<button class="action-btn" onclick="downloadSong(${i})" title="下载">&#8681;</button>`}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderPagination(total, page) {
+        const pages = Math.ceil(total / 20);
+        if (pages <= 1) { document.getElementById('pagination').style.display = 'none'; return; }
+
+        const el = document.getElementById('pagination');
+        el.style.display = 'flex';
+        let html = '';
+        if (page > 1) html += `<button class="page-btn" onclick="doSearch(${page - 1})">上一页</button>`;
+        for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) {
+            html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="doSearch(${i})">${i}</button>`;
+        }
+        if (page < pages) html += `<button class="page-btn" onclick="doSearch(${page + 1})">下一页</button>`;
+        el.innerHTML = html;
+    }
+
+    async function playSong(index) {
+        const song = currentSongs[index];
+        if (!song) return;
+
+        playQueue = [...currentSongs];
+        playIndex = index;
+        await loadAndPlay(song);
+    }
+
+    async function loadAndPlay(song) {
+        const bar = document.getElementById('playerBar');
+        bar.style.display = 'flex';
+        document.getElementById('playerTitle').textContent = song.name;
+        document.getElementById('playerArtist').textContent = song.artist;
+        const coverEl = document.getElementById('playerCover');
+        coverEl.src = song.cover || '';
+        coverEl.referrerPolicy = 'no-referrer';
+
+        currentPlayer.pause();
+        isVideo = song.platform === 'bilibili';
+        currentPlayer = isVideo ? video : audio;
+        speedIndex = 2;
+        applySpeed(1);
+        document.getElementById('speedBtn').textContent = '1x';
+        document.getElementById('videoContainer').style.display = isVideo ? 'block' : 'none';
+        document.getElementById('videoShowBtn').style.display = 'none';
+
+        const extra = encodeURIComponent(JSON.stringify(song.extra));
+        try {
+            const resp = await fetch(`/api/play/${song.platform}/${song.id}?extra=${extra}`);
+            const data = await resp.json();
+            if (data.url) {
+                const proxyUrl = `/api/proxy?url=${encodeURIComponent(data.url)}`;
+                currentPlayer.src = proxyUrl;
+                currentPlayer.play();
+                document.getElementById('playPauseBtn').innerHTML = '&#9646;&#9646;';
+                fetchLyrics(song);
+            } else {
+                alert('无法获取播放地址');
+            }
+        } catch (e) {
+            alert('播放出错: ' + e.message);
+        }
+    }
+
+    function closeVideo() {
+        document.getElementById('videoContainer').style.display = 'none';
+        document.getElementById('videoShowBtn').style.display = '';
+    }
+
+    function showVideo() {
+        document.getElementById('videoContainer').style.display = 'block';
+        document.getElementById('videoShowBtn').style.display = 'none';
+    }
+
+    const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    let speedIndex = 2;
+    let _desiredRate = 1;
+    let _speedTimer = null;
+
+    let _enforcingSpeed = false;
+
+    function applySpeed(rate) {
+        _desiredRate = rate;
+        _enforcingSpeed = true;
+        currentPlayer.playbackRate = rate;
+        if (_speedTimer) clearInterval(_speedTimer);
+        _speedTimer = setInterval(() => {
+            if (Math.abs(currentPlayer.playbackRate - _desiredRate) > 0.01) {
+                currentPlayer.playbackRate = _desiredRate;
+            }
+        }, 200);
+    }
+
+    // Instant rate enforcement via ratechange event
+    function onRateChange() {
+        if (_enforcingSpeed && Math.abs(this.playbackRate - _desiredRate) > 0.01) {
+            this.playbackRate = _desiredRate;
+        }
+    }
+    audio.addEventListener('ratechange', onRateChange);
+    video.addEventListener('ratechange', onRateChange);
+
+    function cycleSpeed() {
+        speedIndex = (speedIndex + 1) % speeds.length;
+        const s = speeds[speedIndex];
+        applySpeed(s);
+        document.getElementById('speedBtn').textContent = s + 'x';
+    }
+
+    let _savedRate = 1;
+    let _pressTime = 0;
+    let _pressTimer = null;
+    let _longPressActive = false;
+    const speedInd = document.getElementById('speedIndicator');
+
+    function videoPressStart(e) {
+        e.preventDefault();
+        _pressTime = Date.now();
+        if (currentPlayer.paused) return;
+        _savedRate = _desiredRate;
+        if (_pressTimer) clearTimeout(_pressTimer);
+        _pressTimer = setTimeout(() => {
+            _pressTimer = null;
+            _longPressActive = true;
+            applySpeed(2);
+            speedInd.textContent = '2x 倍速播放中';
+            speedInd.style.display = 'block';
+        }, 1000);
+    }
+
+    function videoPressEnd() {
+        if (_pressTimer) { clearTimeout(_pressTimer); _pressTimer = null; }
+        if (speedInd.style.display === 'block') {
+            applySpeed(_savedRate);
+            speedInd.style.display = 'none';
+        }
+        if (_longPressActive) {
+            Promise.resolve().then(() => { _longPressActive = false; });
+        }
+        _pressTime = 0;
+    }
+
+    // Safety net: auto-resume if browser pauses video after long-press release
+    document.getElementById('videoPlayer').addEventListener('pause', () => {
+        if (_longPressActive) {
+            document.getElementById('videoPlayer').play();
+        }
+    });
+
+    function togglePlay() {
+        if (currentPlayer.paused) {
+            currentPlayer.play();
+            document.getElementById('playPauseBtn').innerHTML = '&#9646;&#9646;';
+        } else {
+            currentPlayer.pause();
+            document.getElementById('playPauseBtn').innerHTML = '&#9654;';
+        }
+    }
+
+    function prevTrack() {
+        if (playIndex > 0) { playIndex--; loadAndPlay(playQueue[playIndex]); }
+    }
+
+    function nextTrack() {
+        if (playIndex < playQueue.length - 1) { playIndex++; loadAndPlay(playQueue[playIndex]); }
+    }
+
+    function seekTo(val) {
+        if (currentPlayer.duration) currentPlayer.currentTime = (val / 100) * currentPlayer.duration;
+    }
+
+    function onTimeUpdate() {
+        if (this.duration) {
+            document.getElementById('progressBar').value = (this.currentTime / this.duration) * 100;
+            document.getElementById('currentTime').textContent = formatTime(Math.floor(this.currentTime));
+            document.getElementById('totalTime').textContent = formatTime(Math.floor(this.duration));
+            updateLyricsHighlight(this.currentTime);
+        }
+    }
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', () => nextTrack());
+    video.addEventListener('ended', () => nextTrack());
+
+    function downloadSong(index, stream) {
+        const song = currentSongs[index];
+        if (!song) return;
+
+        const extra = encodeURIComponent(JSON.stringify(song.extra));
+        let params = `extra=${extra}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`;
+        if (song.platform === 'bilibili') {
+            params += `&stream=${stream || 'video'}`;
+        }
+        const url = `/api/download/${song.platform}/${song.id}?${params}`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function platformName(p) {
+        return {kugou: '酷狗', netease: '网易云', bilibili: 'B站'}[p] || p;
+    }
+
+    function parseLRC(text) {
+        if (!text) return [];
+        const lines = text.split('\n');
+        const parsed = [];
+        const tagRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+        for (const line of lines) {
+            if (/^\[([a-zA-Z]+):/.test(line)) continue;
+            const timestamps = [];
+            const stripped = line.replace(tagRegex, (m, min, sec, ms) => {
+                const total = parseInt(min) * 60 + parseInt(sec) + (parseInt(ms || '0') / (ms && ms.length === 3 ? 1000 : 100));
+                timestamps.push(total);
+                return '';
+            }).trim();
+            for (const ts of timestamps) {
+                parsed.push({ time: ts, text: stripped || '...' });
+            }
+        }
+        parsed.sort((a, b) => a.time - b.time);
+        return parsed;
+    }
+
+    async function fetchLyrics(song) {
+        lyricsData = [];
+        currentLyricIndex = -1;
+        const content = document.getElementById('lyricsContent');
+        content.innerHTML = '<p class="lyrics-empty">加载歌词中...</p>';
+        document.getElementById('lyricsTitle').textContent = song.name;
+
+        const extra = encodeURIComponent(JSON.stringify(song.extra));
+        const params = `extra=${extra}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}&duration=${song.duration || 0}`;
+        try {
+            const resp = await fetch(`/api/lyrics/${song.platform}/${song.id}?${params}`);
+            const data = await resp.json();
+            if (data.lyrics) {
+                lyricsData = parseLRC(data.lyrics);
+                renderLyrics();
+            } else {
+                content.innerHTML = '<p class="lyrics-empty">暂无歌词</p>';
+            }
+        } catch (e) {
+            content.innerHTML = '<p class="lyrics-empty">歌词加载失败</p>';
+        }
+    }
+
+    function renderLyrics() {
+        const content = document.getElementById('lyricsContent');
+        if (!lyricsData.length) {
+            content.innerHTML = '<p class="lyrics-empty">暂无歌词</p>';
+            return;
+        }
+        content.innerHTML = lyricsData.map((line, i) =>
+            `<div class="lyric-line" data-index="${i}" onclick="seekToLyric(${line.time})">${escHtml(line.text)}</div>`
+        ).join('');
+    }
+
+    function updateLyricsHighlight(currentTime) {
+        if (!lyricsData.length) return;
+        let idx = -1;
+        for (let i = lyricsData.length - 1; i >= 0; i--) {
+            if (currentTime >= lyricsData[i].time) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx === currentLyricIndex) return;
+        currentLyricIndex = idx;
+
+        const content = document.getElementById('lyricsContent');
+        const prev = content.querySelector('.lyric-line.active');
+        if (prev) prev.classList.remove('active');
+
+        if (idx >= 0) {
+            const activeLine = content.querySelector(`.lyric-line[data-index="${idx}"]`);
+            if (activeLine) {
+                activeLine.classList.add('active');
+                const containerHeight = content.clientHeight;
+                const lineTop = activeLine.offsetTop;
+                const lineHeight = activeLine.offsetHeight;
+                content.scrollTo({
+                    top: lineTop - containerHeight / 2 + lineHeight / 2,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }
+
+    function toggleLyrics() {
+        const panel = document.getElementById('lyricsPanel');
+        const tab = document.getElementById('lyricsTab');
+        lyricsVisible = !lyricsVisible;
+        if (lyricsVisible) {
+            panel.classList.remove('hidden');
+            tab.innerHTML = '&#8250;';
+        } else {
+            panel.classList.add('hidden');
+            tab.innerHTML = '&#8249;';
+        }
+    }
+
+    function seekToLyric(time) {
+        if (currentPlayer.duration) {
+            currentPlayer.currentTime = time;
+        }
+    }
+
+    function formatTime(s) {
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        return `${m}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    function escHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // Video events
+    (function() {
+        const vc = document.getElementById('videoContainer');
+        const vp = document.getElementById('videoPlayer');
+
+        // Block browser click-to-pause on video
+        vp.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
+
+        vc.addEventListener('mousedown', videoPressStart);
+        vc.addEventListener('touchstart', videoPressStart, {passive: false});
+        vc.addEventListener('mouseup', videoPressEnd);
+        vc.addEventListener('touchend', videoPressEnd);
+        vc.addEventListener('mouseleave', videoPressEnd);
+        vc.addEventListener('touchcancel', videoPressEnd);
+        document.getElementById('videoCloseBtn').addEventListener('click', closeVideo);
+    })();
+</script>
+{% endblock %}
