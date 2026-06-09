@@ -4,6 +4,7 @@ from typing import Optional
 import json
 import os
 import httpx
+import config
 
 
 @dataclass
@@ -29,7 +30,7 @@ class MusicPlatform(ABC):
     name: str = ""
     platform_id: str = ""
     supported_login_methods: list[str] = ["qrcode", "cookie", "phone"]
-    SESSION_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".sessions")
+    SESSION_DIR = os.path.join(config.PERSIST_DIR, ".sessions")
 
     def __init__(self):
         self.cookies: dict[str, str] = {}

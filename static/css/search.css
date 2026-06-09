@@ -1,0 +1,178 @@
+/* Search Page */
+.search-header { margin-bottom: 24px; }
+
+.search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.search-input {
+    flex: 1;
+    padding: 12px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-btn { padding: 12px 28px; font-size: 15px; }
+
+.platform-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+.loading {
+    display: flex;
+    justify-content: center;
+    padding: 40px;
+}
+.loading::after {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.song-list { display: flex; flex-direction: column; gap: 2px; }
+
+.song-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+.song-item:hover { background: var(--bg-hover); }
+
+.song-index {
+    width: 32px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.song-cover-wrap { flex-shrink: 0; }
+.song-cover {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+.song-cover-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    background: var(--bg-card);
+}
+
+.song-info { flex: 1; min-width: 0; }
+.song-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.song-artist {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.song-platform { flex-shrink: 0; }
+.platform-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+.badge-kugou { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-netease { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-bilibili { background: rgba(251,114,153,0.15); color: #fb7299; }
+
+.song-duration {
+    color: var(--text-secondary);
+    font-size: 13px;
+    width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.song-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.action-btn {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.action-btn:hover { background: var(--accent); color: #fff; }
+.song-menu-btn { font-size: 22px; font-weight: bold; line-height: 1; letter-spacing: -1px; }
+.fav-btn.active { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+.fav-btn.active:hover { background: rgba(239, 68, 68, 0.3); color: #ef4444; }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 20px 0;
+}
+.page-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.page-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }

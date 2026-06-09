@@ -1,0 +1,108 @@
+/* Lyrics Sidebar */
+.lyrics-panel {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    width: 380px;
+    height: calc(100vh - 56px - 72px);
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 150;
+    transition: transform 0.3s ease;
+}
+
+.lyrics-panel.hidden {
+    transform: translateX(100%);
+}
+
+.lyrics-tab {
+    position: absolute;
+    left: -28px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 56px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 18px;
+    transition: all 0.2s;
+    user-select: none;
+}
+.lyrics-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.lyrics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.lyrics-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lyrics-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: none;
+}
+
+.lyrics-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scroll-behavior: smooth;
+}
+
+.lyric-line {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1.6;
+    text-align: center;
+}
+.lyric-line:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+.lyric-line.active {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.lyrics-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 40px 20px;
+    font-size: 14px;
+}

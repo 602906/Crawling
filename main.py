@@ -485,4 +485,11 @@ async def proxy_audio(request: Request, url: str = Query(...)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=config.HOST, port=config.PORT)
+    args = config.parse_args()
+
+    if config.IS_FROZEN:
+        import threading
+        import webbrowser
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{args.port}")).start()
+
+    uvicorn.run(app, host=args.host, port=args.port)
