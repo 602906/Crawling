@@ -39,30 +39,38 @@ let _currentSong = null;
         const extra = encodeURIComponent(JSON.stringify(song.extra));
         const cacheKey = `${song.platform}:${song.id}`;
         try {
-            const cached = await getCachedAudio(cacheKey);
-            if (cached) {
-                currentPlayer.src = URL.createObjectURL(cached.blob);
-                await safePlay();
-                fetchLyrics(song);
-                return;
-            }
-
             const resp = await fetch(`/api/play/${song.platform}/${song.id}?extra=${extra}`);
             const data = await resp.json();
-            if (data.url) {
-                const proxyUrl = `/api/proxy?url=${encodeURIComponent(data.url)}`;
-                const audioResp = await fetch(proxyUrl);
-                const blob = await audioResp.blob();
-                putCachedAudio(cacheKey, blob);
-                currentPlayer.src = URL.createObjectURL(blob);
-                await safePlay();
-                fetchLyrics(song);
+            if (!data.url) { showToast('无法获取播放地址'); return; }
+
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(data.url)}`;
+            const cached = !isVideo ? await getCachedAudio(cacheKey) : null;
+
+            if (cached) {
+                currentPlayer.src = URL.createObjectURL(cached.blob);
             } else {
-                showToast('无法获取播放地址');
+                currentPlayer.src = proxyUrl;
             }
+
+            await safePlay();
+            fetchLyrics(song);
+
+            if (!cached && !isVideo) _bgCacheAudio(cacheKey, proxyUrl);
         } catch (e) {
             showToast('播放出错: ' + e.message);
         }
+    }
+
+    const _cachingKeys = new Set();
+    async function _bgCacheAudio(key, proxyUrl) {
+        if (_cachingKeys.has(key)) return;
+        _cachingKeys.add(key);
+        try {
+            const resp = await fetch(proxyUrl);
+            const blob = await resp.blob();
+            await putCachedAudio(key, blob);
+        } catch (e) {}
+        _cachingKeys.delete(key);
     }
 
     function closeVideo() {
