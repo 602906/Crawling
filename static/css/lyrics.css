@@ -52,12 +52,63 @@
 }
 
 .lyrics-title {
+    flex: 1;
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* 歌词导出：标题右侧下载按钮 + 下拉菜单 */
+.lyrics-export {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.lyrics-export-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.lyrics-export-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.lyrics-export-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px var(--shadow-strong);
+    white-space: nowrap;
+    z-index: 160;
+    overflow: hidden;
+}
+.lyrics-export-menu.open {
+    display: block;
+}
+
+.lyrics-export-item {
+    padding: 9px 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.lyrics-export-item:hover {
+    background: var(--bg-hover);
 }
 
 .lyrics-close {

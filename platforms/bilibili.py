@@ -224,11 +224,28 @@ class BilibiliPlatform(MusicPlatform):
             durl = data.get("data", {}).get("durl", [])
             if durl:
                 return durl[0].get("url", "")
-            dash = data.get("data", {}).get("dash", {})
-            if dash:
-                videos = dash.get("video", [])
-                if videos:
-                    return videos[0].get("baseUrl", "")
+
+        # durl 缺失时用 html5 平台参数重试，强制返回可直接播放的 MP4 完整流
+        # （DASH 纯视频轨 m4s 无音频且 video 标签无法直接播放，不能作为回退）
+        params = self._sign_wbi({
+            "bvid": bvid,
+            "cid": cid,
+            "fnval": 1,
+            "fnver": 0,
+            "platform": "html5",
+            "high_quality": 1,
+        })
+        async with self._client() as client:
+            resp = await client.get(
+                "https://api.bilibili.com/x/player/wbi/playurl",
+                params=params,
+            )
+            data = resp.json()
+
+        if data.get("code") == 0:
+            durl = data.get("data", {}).get("durl", [])
+            if durl:
+                return durl[0].get("url", "")
         return ""
 
     async def _get_dash_streams(self, bvid: str, cid: str) -> dict:

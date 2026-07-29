@@ -1,17 +1,29 @@
 /* Video Player */
+:root { --player-bar-h: 72px; }
+
 .video-container {
     position: fixed;
-    bottom: 72px;
+    bottom: var(--player-bar-h, 72px);
     left: 50%;
     transform: translateX(-50%);
     width: 640px;
     max-width: 90vw;
+    /* 限制最大高度，防止竖屏视频顶穿导航栏和视口（56px navbar + 播放条 + 余量） */
+    max-height: calc(100vh - var(--player-bar-h, 72px) - 56px - 16px);
     z-index: 199;
     background: #000;
     border-radius: 8px 8px 0 0;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.video-container video { width: 100%; display: block; }
+.video-container video {
+    width: 100%;
+    max-height: calc(100vh - var(--player-bar-h, 72px) - 56px - 16px);
+    display: block;
+    object-fit: contain;
+}
 .video-close {
     position: absolute;
     top: 8px;
@@ -145,6 +157,82 @@
     -webkit-appearance: none;
     width: 14px;
     height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.volume-btn svg {
+    display: block;
+    pointer-events: none;
+}
+/* 悬停音量按钮时弹出竖向滑条 */
+.volume-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 34px;
+    height: 118px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px var(--shadow-strong);
+    z-index: 100;
+}
+/* 悬停弹出仅限真正支持 hover 的设备；
+   触屏上点击会产生粘性 hover，导致 JS 切换 .open 关不掉面板 */
+@media (hover: hover) {
+    .volume-control:hover .volume-popup {
+        display: block;
+    }
+}
+.volume-popup.open {
+    display: block;
+}
+/* 水平滑条旋转成竖向，兼容性优于 appearance: slider-vertical；
+   输入框本体加高到 24px 保证命中区域，轨道细线由伪元素绘制 */
+.volume-slider {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 94px;
+    height: 24px;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+}
+.volume-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+}
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.volume-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+}
+.volume-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;

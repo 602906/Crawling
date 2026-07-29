@@ -35,6 +35,12 @@
         const favText = document.getElementById('ctxFavText');
         favText.textContent = isFavorite(_ctxSong) ? '♡ 取消收藏' : '♥ 收藏';
 
+        // 仅当右键的正是当前播放歌曲且已有进度时，显示“从当前播放处分享”
+        const shareAtItem = document.getElementById('ctxShareAtItem');
+        const isPlayingSong = _currentSong && _ctxSong &&
+            _currentSong.platform === _ctxSong.platform && _currentSong.id === _ctxSong.id;
+        shareAtItem.style.display = (isPlayingSong && currentPlayer.currentTime > 1) ? 'block' : 'none';
+
         const sub = document.getElementById('ctxDownloadSub');
         const platform = _ctxSong.platform;
         let items = '';
@@ -200,10 +206,25 @@
     function ctxShare() {
         hideContextMenu();
         if (!_ctxSong) return;
-        const s = _ctxSong;
-        const text = `${s.name} - ${s.artist} (${platformName(s.platform)})`;
-        const url = `${location.origin}/?autoplay=1&platform=${encodeURIComponent(s.platform)}&id=${encodeURIComponent(s.id)}`;
+        _copyShareLink(_ctxSong, 0);
+    }
+
+    // 从当前播放进度处分享：链接附带 t 秒数，打开后自动跳转
+    function ctxShareAt() {
+        hideContextMenu();
+        if (!_ctxSong) return;
+        _copyShareLink(_ctxSong, Math.floor(currentPlayer.currentTime || 0));
+    }
+
+    function _copyShareLink(s, seconds) {
+        let text = `${s.name} - ${s.artist} (${platformName(s.platform)})`;
+        let url = `${location.origin}/?autoplay=1&platform=${encodeURIComponent(s.platform)}&id=${encodeURIComponent(s.id)}`;
+        if (seconds > 0) {
+            url += `&t=${seconds}`;
+            text += ` [${formatTime(seconds)} 处]`;
+        }
         const shareText = `${text}\n${url}`;
+        const doneMsg = seconds > 0 ? `已复制分享链接（从 ${formatTime(seconds)} 处播放）` : '已复制分享链接';
         const silentCopy = () => {
             const ta = document.createElement('textarea');
             ta.value = shareText;
@@ -216,14 +237,14 @@
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareText).then(() => {
-                showToast('已复制分享链接');
+                showToast(doneMsg);
             }).catch(() => {
                 silentCopy();
-                showToast('已复制分享链接');
+                showToast(doneMsg);
             });
         } else {
             silentCopy();
-            showToast('已复制分享链接');
+            showToast(doneMsg);
         }
     }
 
@@ -233,6 +254,7 @@
         const platform = params.get('platform');
         const id = params.get('id');
         if (!platform || !id) return;
+        const startAt = parseInt(params.get('t') || '0', 10) || 0;
 
         showToast('正在加载歌曲...');
         let song;
@@ -255,8 +277,25 @@
         savePlaylist();
         renderPlaylist();
         await loadAndPlay(song);
+        if (startAt > 0) _seekWhenReady(startAt);
         if (!lyricsVisible) toggleLyrics();
         history.replaceState({}, '', location.pathname);
+    }
+
+    // 媒体元数据就绪后跳转到指定秒数（超出时长则不跳）
+    function _seekWhenReady(seconds) {
+        const player = currentPlayer;
+        const doSeek = () => {
+            if (player !== currentPlayer) return; // 已切歌，放弃
+            if (player.duration && seconds < player.duration) {
+                player.currentTime = seconds;
+            }
+        };
+        if (player.readyState >= 1 && player.duration) {
+            doSeek();
+        } else {
+            player.addEventListener('loadedmetadata', doSeek, { once: true });
+        }
     }
     checkShareAutoplay();
 

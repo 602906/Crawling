@@ -1,6 +1,8 @@
 let lyricsData = [];
 let currentLyricIndex = -1;
 let lyricsVisible = false;
+let lyricsRaw = '';        // 原始 LRC 文本，供复制/下载导出
+let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件名
 
     function parseLRC(text) {
         if (!text) return [];
@@ -26,6 +28,9 @@ let lyricsVisible = false;
     async function fetchLyrics(song) {
         lyricsData = [];
         currentLyricIndex = -1;
+        lyricsRaw = '';
+        lyricsSong = null;
+        document.getElementById('lyricsExport').style.display = 'none';
         const content = document.getElementById('lyricsContent');
         content.innerHTML = '<p class="lyrics-empty">加载歌词中...</p>';
         document.getElementById('lyricsTitle').textContent = song.name;
@@ -37,6 +42,11 @@ let lyricsVisible = false;
             const data = await resp.json();
             if (data.lyrics) {
                 lyricsData = parseLRC(data.lyrics);
+                if (lyricsData.length) {
+                    lyricsRaw = data.lyrics;
+                    lyricsSong = song;
+                    document.getElementById('lyricsExport').style.display = '';
+                }
                 renderLyrics();
             } else {
                 content.innerHTML = '<p class="lyrics-empty">暂无歌词</p>';
@@ -44,6 +54,74 @@ let lyricsVisible = false;
         } catch (e) {
             content.innerHTML = '<p class="lyrics-empty">歌词加载失败</p>';
         }
+    }
+
+    // === 歌词导出：复制纯文本 / 下载 LRC 文件 ===
+    function toggleLyricsExportMenu(e) {
+        e.stopPropagation();
+        document.getElementById('lyricsExportMenu').classList.toggle('open');
+    }
+
+    // 点击菜单外部时收起
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.lyrics-export')) {
+            document.getElementById('lyricsExportMenu').classList.remove('open');
+        }
+    });
+
+    function _closeLyricsExportMenu() {
+        document.getElementById('lyricsExportMenu').classList.remove('open');
+    }
+
+    function copyLyricsText() {
+        _closeLyricsExportMenu();
+        if (!lyricsRaw) return;
+        // 去掉时间标签和元信息行，只保留歌词文本
+        const text = lyricsRaw.split('\n')
+            .filter(l => !/^\[([a-zA-Z]+):/.test(l))
+            .map(l => l.replace(/\[[^\]]*\]/g, '').trim())
+            .filter(Boolean)
+            .join('\n');
+        if (!text) { showToast('没有可复制的歌词'); return; }
+        const silentCopy = () => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('歌词已复制到剪贴板');
+            }).catch(() => {
+                silentCopy();
+                showToast('歌词已复制到剪贴板');
+            });
+        } else {
+            silentCopy();
+            showToast('歌词已复制到剪贴板');
+        }
+    }
+
+    function downloadLrcFile() {
+        _closeLyricsExportMenu();
+        if (!lyricsRaw) return;
+        const name = lyricsSong ? `${lyricsSong.name} - ${lyricsSong.artist}` : '歌词';
+        // 去掉文件名非法字符
+        const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
+        const blob = new Blob([lyricsRaw], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeName}.lrc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('LRC 歌词已下载');
     }
 
     function renderLyrics() {

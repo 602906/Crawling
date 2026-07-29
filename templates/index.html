@@ -35,6 +35,12 @@
         <div class="empty-state" id="emptyState">
             <div class="empty-icon">&#9835;</div>
             <p>输入关键词开始搜索</p>
+            <div class="site-footer">
+                <span>项目地址</span>
+                <a href="https://github.602906.xyz/602906/Crawling" target="_blank" rel="noopener noreferrer">Github</a>
+                <span class="site-footer-sep">|</span>
+                <a href="https://qm.qq.com/q/TXN40V1lYs" target="_blank" rel="noopener noreferrer">QQ</a>
+            </div>
         </div>
         <div class="loading" id="searchLoading" style="display:none;"></div>
         <div class="song-list" id="songList"></div>
@@ -52,6 +58,13 @@
     <div class="lyrics-tab" id="lyricsTab" onclick="toggleLyrics()">&#8249;</div>
     <div class="lyrics-header">
         <span class="lyrics-title" id="lyricsTitle">歌词</span>
+        <div class="lyrics-export" id="lyricsExport" style="display:none;">
+            <button class="lyrics-export-btn" onclick="toggleLyricsExportMenu(event)" title="导出歌词">&#10515;</button>
+            <div class="lyrics-export-menu" id="lyricsExportMenu">
+                <div class="lyrics-export-item" onclick="copyLyricsText()">复制完整歌词</div>
+                <div class="lyrics-export-item" onclick="downloadLrcFile()">下载 LRC 歌词</div>
+            </div>
+        </div>
         <button class="lyrics-close" onclick="toggleLyrics()">&#10005;</button>
     </div>
     <div class="lyrics-content" id="lyricsContent">
@@ -109,6 +122,13 @@
         <input type="range" id="progressBar" class="progress-slider" min="0" max="100" value="0"
                oninput="seekTo(this.value)">
         <span class="time" id="totalTime">0:00</span>
+        <div class="volume-control">
+            <div class="volume-popup">
+                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="100"
+                       oninput="setVolume(this.value)">
+            </div>
+            <button class="player-btn volume-btn" id="volumeBtn" onclick="toggleMute()" title="静音"></button>
+        </div>
     </div>
     <audio id="audioPlayer" preload="auto"></audio>
 </div>
@@ -125,6 +145,7 @@
     <div class="ctx-separator"></div>
     <div class="ctx-item" onclick="ctxAnalyze()">&#8505; 歌曲信息</div>
     <div class="ctx-item" onclick="ctxShare()">&#8599; 分享</div>
+    <div class="ctx-item" id="ctxShareAtItem" style="display:none;" onclick="ctxShareAt()">&#8599; 从当前播放处分享</div>
 </div>
 
 <div class="info-overlay" id="infoOverlay" onclick="if(event.target===this)closeInfoModal()">

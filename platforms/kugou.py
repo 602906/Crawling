@@ -24,6 +24,13 @@ LITE_RSA_PUB_KEY = (
 )
 
 
+def _https_url(url: str) -> str:
+    """封面/头像等图片链接统一升级为 https，避免 HTTPS 页面下的混合内容告警"""
+    if url and url.startswith("http://"):
+        return "https://" + url[7:]
+    return url
+
+
 def _md5(data) -> str:
     if isinstance(data, dict):
         data = json.dumps(data, separators=(',', ':'))
@@ -369,7 +376,7 @@ class KuGouPlatform(MusicPlatform):
                 self.user_info = {
                     "name": info.get("nickname") or info.get("username") or nickname or "酷狗用户",
                     "id": info.get("userid") or user_id or self._userid,
-                    "avatar": info.get("pic") or info.get("avatar") or avatar,
+                    "avatar": _https_url(info.get("pic") or info.get("avatar") or avatar),
                 }
                 self._persist_session()
                 return {"success": True, "msg": "Cookie 登录成功"}
@@ -378,7 +385,7 @@ class KuGouPlatform(MusicPlatform):
 
         if token:
             self.logged_in = True
-            self.user_info = {"name": nickname or "酷狗用户", "id": user_id or self._userid, "avatar": avatar}
+            self.user_info = {"name": nickname or "酷狗用户", "id": user_id or self._userid, "avatar": _https_url(avatar)}
             self._persist_session()
             return {"success": True, "msg": "Cookie 登录成功"}
         return {"success": False, "msg": "Cookie 无效或已过期"}
@@ -478,7 +485,7 @@ class KuGouPlatform(MusicPlatform):
             song_hash = (item.get("FileHash", "") or item.get("hash", "")).lower()
             album_id = str(item.get("AlbumID", "") or item.get("album_id", ""))
             img_tpl = item.get("Image", "") or item.get("cover", "") or ""
-            cover = img_tpl.replace("{size}", "240") if img_tpl and "{size}" in img_tpl else img_tpl
+            cover = _https_url(img_tpl.replace("{size}", "240") if img_tpl and "{size}" in img_tpl else img_tpl)
             duration = item.get("Duration", 0) or item.get("duration", 0) or 0
             if isinstance(duration, str):
                 try:
@@ -526,7 +533,7 @@ class KuGouPlatform(MusicPlatform):
         songs = []
         for item in data.get("data", {}).get("lists", []):
             img_tpl = item.get("Image", "")
-            cover = img_tpl.replace("{size}", "240") if img_tpl else ""
+            cover = _https_url(img_tpl.replace("{size}", "240") if img_tpl else "")
             song = Song(
                 id=item.get("FileHash", ""),
                 name=item.get("SongName", "").replace("<em>", "").replace("</em>", ""),
@@ -712,7 +719,7 @@ class KuGouPlatform(MusicPlatform):
             if not (data.get("songName") or data.get("songname")):
                 return None
             album_img = data.get("album_img", "") or ""
-            cover = album_img.replace("{size}", "240") if "{size}" in album_img else album_img
+            cover = _https_url(album_img.replace("{size}", "240") if "{size}" in album_img else album_img)
             ext = data.get("extra", {}) or {}
             duration_ms = ext.get("128timelength", 0) or ext.get("320timelength", 0) or 0
             return Song(

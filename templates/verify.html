@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/login.css">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <h1>访问验证</h1>
+    <p class="subtitle">此页面受密码保护，请输入访问密码</p>
+
+    <div class="login-section" style="max-width: 360px; margin: 24px auto 0;">
+        <div class="form-group">
+            <label>访问密码</label>
+            <input type="password" id="accessPwdInput" class="form-input" placeholder="请输入访问密码"
+                   onkeydown="if(event.key==='Enter')verifyAccess()">
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="verifyAccess()">验证</button>
+    </div>
+
+    <div class="login-result" id="verifyResult"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function verifyAccess() {
+        const pwd = document.getElementById('accessPwdInput').value;
+        if (!pwd) { showToast('请输入密码'); return; }
+        const result = document.getElementById('verifyResult');
+        try {
+            const resp = await fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: pwd}),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                result.className = 'login-result success';
+                result.textContent = '验证成功，正在进入...';
+                result.style.display = 'block';
+                location.reload();
+            } else {
+                result.className = 'login-result error';
+                result.textContent = data.msg || '密码错误';
+                result.style.display = 'block';
+            }
+        } catch (e) {
+            result.className = 'login-result error';
+            result.textContent = '验证失败: ' + e.message;
+            result.style.display = 'block';
+        }
+    }
+    document.getElementById('accessPwdInput').focus();
+</script>
+{% endblock %}

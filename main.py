@@ -1,5 +1,6 @@
 import os
 import asyncio
+import secrets
 from dataclasses import asdict
 from typing import Optional
 
@@ -14,6 +15,17 @@ from platforms import PLATFORMS
 from platforms.base import MusicPlatform
 
 app = FastAPI(title="Music Catch", version="1.0.0")
+
+
+@app.middleware("http")
+async def _upgrade_insecure(request: Request, call_next):
+    # HTTPS 模式下让浏览器把页面内的 http 资源（封面图等）静默升级为 https，
+    # 避免混合内容告警
+    response = await call_next(request)
+    if config.HTTPS or config.SSL:
+        response.headers["Content-Security-Policy"] = "upgrade-insecure-requests"
+    return response
+
 
 app.mount("/static", StaticFiles(directory=os.path.join(config.BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(config.BASE_DIR, "templates"))
@@ -40,6 +52,43 @@ def _get_platform(name: str) -> MusicPlatform:
     return _sessions[name]
 
 
+# === 敏感接口密码保护 ===
+# 令牌每次启动随机生成，服务重启后所有已验证会话失效
+_AUTH_COOKIE = "mc_auth"
+_auth_token = secrets.token_hex(32)
+
+
+def _is_authed(request: Request) -> bool:
+    if not config.PASSWORD:
+        return True
+    return request.cookies.get(_AUTH_COOKIE, "") == _auth_token
+
+
+def _require_auth(request: Request):
+    if not _is_authed(request):
+        raise HTTPException(401, "需要密码验证")
+
+
+@app.post("/api/auth/verify")
+async def verify_password(request: Request):
+    if not config.PASSWORD:
+        return {"success": True}
+    body = await request.json()
+    pwd = str(body.get("password", ""))
+    if not secrets.compare_digest(pwd, config.PASSWORD):
+        return JSONResponse({"success": False, "msg": "密码错误"}, status_code=401)
+    resp = JSONResponse({"success": True})
+    resp.set_cookie(
+        _AUTH_COOKIE, _auth_token,
+        max_age=7 * 86400,
+        httponly=True,
+        samesite="lax",
+        # HTTPS 模式（反代终止 TLS 或本地证书）下 cookie 仅允许加密传输
+        secure=config.HTTPS or config.SSL,
+    )
+    return resp
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     logged_in = {k: v.logged_in for k, v in _sessions.items()}
@@ -52,6 +101,11 @@ async def index(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    # 启用密码保护且未验证时，先显示密码验证页
+    if not _is_authed(request):
+        return templates.TemplateResponse("verify.html", {
+            "request": request,
+        })
     platform_info = {}
     for pid, cls in PLATFORMS.items():
         platform_info[pid] = {
@@ -66,7 +120,8 @@ async def login_page(request: Request):
 
 
 @app.get("/api/login/qrcode/{platform}")
-async def get_qr_code(platform: str):
+async def get_qr_code(platform: str, request: Request):
+    _require_auth(request)
     p = _get_platform(platform)
     qr = await p.get_qr_code()
     if not qr:
@@ -75,7 +130,8 @@ async def get_qr_code(platform: str):
 
 
 @app.get("/api/login/qrcode/{platform}/check")
-async def check_qr_status(platform: str):
+async def check_qr_status(platform: str, request: Request):
+    _require_auth(request)
     p = _get_platform(platform)
     result = await p.check_qr_status()
     if result.get("status") == "success":
@@ -86,6 +142,7 @@ async def check_qr_status(platform: str):
 
 @app.post("/api/login/cookie/{platform}")
 async def login_cookie(platform: str, request: Request):
+    _require_auth(request)
     body = await request.json()
     cookie_str = body.get("cookie", "")
     p = _get_platform(platform)
@@ -98,6 +155,7 @@ async def login_cookie(platform: str, request: Request):
 
 @app.post("/api/login/phone/{platform}")
 async def login_phone(platform: str, request: Request):
+    _require_auth(request)
     body = await request.json()
     phone = body.get("phone", "")
     code = body.get("code", "")
@@ -111,6 +169,7 @@ async def login_phone(platform: str, request: Request):
 
 @app.post("/api/login/phone/{platform}/send_code")
 async def send_phone_code(platform: str, request: Request):
+    _require_auth(request)
     body = await request.json()
     phone = body.get("phone", "")
     p = _get_platform(platform)
@@ -396,7 +455,8 @@ async def get_song_info(platform: str, song_id: str, request: Request):
 
 
 @app.get("/api/status")
-async def get_status():
+async def get_status(request: Request):
+    _require_auth(request)
     result = {}
     for name, p in _sessions.items():
         result[name] = {
@@ -415,7 +475,8 @@ async def get_status():
 
 
 @app.post("/api/logout/{platform}")
-async def logout(platform: str):
+async def logout(platform: str, request: Request):
+    _require_auth(request)
     p = _sessions.pop(platform, None)
     if p:
         session_file = os.path.join(p.SESSION_DIR, f"{platform}.json")
@@ -490,6 +551,18 @@ if __name__ == "__main__":
     if config.IS_FROZEN:
         import threading
         import webbrowser
-        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{args.port}")).start()
+        scheme = "https" if args.ssl else "http"
+        threading.Timer(1.5, lambda: webbrowser.open(f"{scheme}://localhost:{args.port}")).start()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn_kwargs = {"host": args.host, "port": args.port}
+    if args.https:
+        # 反向代理终止 TLS：信任代理的 X-Forwarded-Proto/For 头，
+        # 让 FastAPI 正确识别外部 https 协议和客户端真实 IP
+        uvicorn_kwargs["proxy_headers"] = True
+        uvicorn_kwargs["forwarded_allow_ips"] = "*"
+    if args.ssl:
+        # 本程序直接加载证书提供 HTTPS
+        uvicorn_kwargs["ssl_certfile"] = args.ssl_certfile
+        uvicorn_kwargs["ssl_keyfile"] = args.ssl_keyfile
+
+    uvicorn.run(app, **uvicorn_kwargs)

@@ -1,5 +1,43 @@
 const AUDIO_CACHE_MAX = 200 * 1024 * 1024;
 
+// === Theme ===
+function _applyThemeIcon() {
+    const btn = document.getElementById('themeToggleBtn');
+    if (!btn) return;
+    const theme = document.documentElement.getAttribute('data-theme');
+    // 暗色显太阳（点击切亮色），亮色显月亮（点击切暗色）
+    btn.textContent = theme === 'light' ? '\u263E' : '\u2600';
+    btn.title = theme === 'light' ? '切换到暗色主题' : '切换到亮色主题';
+}
+
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    const meta = document.getElementById('metaThemeColor');
+    if (meta) meta.content = next === 'light' ? '#ffffff' : '#1a1a24';
+    try {
+        localStorage.setItem('mc_theme', next);
+        localStorage.setItem('mc_theme_ts', String(Date.now()));
+    } catch (e) {}
+    _applyThemeIcon();
+}
+
+// 页面存活期间刷新时间戳，关闭/切后台时也记录一次；
+// 这样“关闭超过 1 分钟”可由 base.html 加载时的时间戳差值判定
+function _touchThemeTs() {
+    try {
+        if (localStorage.getItem('mc_theme')) {
+            localStorage.setItem('mc_theme_ts', String(Date.now()));
+        }
+    } catch (e) {}
+}
+setInterval(_touchThemeTs, 20000);
+window.addEventListener('pagehide', _touchThemeTs);
+document.addEventListener('visibilitychange', _touchThemeTs);
+
+document.addEventListener('DOMContentLoaded', _applyThemeIcon);
+
 function _openAudioCache() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open('MusicCatchAudioCache', 1);
@@ -24,6 +62,14 @@ async function clearAudioCache() {
 }
 
 // === Audio Cache ===
+    // 校验缓存 blob 是否为合法媒体：排除空数据和被误存的错误 JSON/HTML
+    function isValidMediaBlob(blob) {
+        if (!blob || !(blob instanceof Blob) || blob.size < 1024) return false;
+        const type = (blob.type || '').toLowerCase();
+        if (type.includes('json') || type.includes('html') || type.startsWith('text/')) return false;
+        return true;
+    }
+
     async function getCachedAudio(key) {
         try {
             const db = await _openAudioCache();
@@ -66,6 +112,15 @@ async function clearAudioCache() {
                 cursorReq.onerror = () => resolve();
             });
             store.put({ blob, ts: Date.now(), size: blob.size }, key);
+            await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
+        } catch (e) {}
+    }
+
+    async function deleteCachedAudio(key) {
+        try {
+            const db = await _openAudioCache();
+            const tx = db.transaction('audio', 'readwrite');
+            tx.objectStore('audio').delete(key);
             await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
         } catch (e) {}
     }

@@ -49,6 +49,38 @@
 }
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
+/* 底栏：作为空状态的一部分，仅在未搜索时显示，固定在播放条上方 */
+.site-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--player-bar-h, 72px) + 12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    z-index: 100;
+    /* 容器不拦截点击，只让链接可交互 */
+    pointer-events: none;
+}
+.site-footer a {
+    pointer-events: auto;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.site-footer a:hover {
+    color: var(--accent);
+    background: var(--bg-hover);
+}
+.site-footer-sep {
+    opacity: 0.5;
+}
+
 .loading {
     display: flex;
     justify-content: center;
@@ -125,6 +157,10 @@
 .badge-kugou { background: rgba(59,130,246,0.15); color: #60a5fa; }
 .badge-netease { background: rgba(239,68,68,0.15); color: #f87171; }
 .badge-bilibili { background: rgba(251,114,153,0.15); color: #fb7299; }
+/* 浅色主题下徽章文字加深，保证对比度 */
+[data-theme="light"] .badge-kugou { color: #2563eb; }
+[data-theme="light"] .badge-netease { color: #dc2626; }
+[data-theme="light"] .badge-bilibili { color: #d6336c; }
 
 .song-duration {
     color: var(--text-secondary);
