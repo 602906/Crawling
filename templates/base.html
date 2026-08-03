@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" id="metaThemeColor" content="#1a1a24">
+    <script>
+        // 在 CSS 加载前应用主题，避免闪烁。优先级：
+        // 1 分钟内的用户手动选择 > 客户端时间默认值（6:00-20:00 亮色，其余暗色）
+        (function() {
+            var theme = null;
+            try {
+                var saved = localStorage.getItem('mc_theme');
+                var ts = parseInt(localStorage.getItem('mc_theme_ts') || '0', 10);
+                if (saved && Date.now() - ts > 60000) {
+                    localStorage.removeItem('mc_theme');
+                    localStorage.removeItem('mc_theme_ts');
+                    saved = null;
+                }
+                if (saved === 'dark' || saved === 'light') theme = saved;
+            } catch (e) {}
+            if (!theme) {
+                var hour = new Date().getHours();
+                theme = (hour >= 6 && hour < 20) ? 'light' : 'dark';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+            // 同步手机浏览器地址栏颜色
+            var meta = document.getElementById('metaThemeColor');
+            if (meta) meta.content = theme === 'light' ? '#ffffff' : '#1a1a24';
+        })();
+
+        // 刷新时不显示加载动画（sessionStorage 跨刷新保持，新标签页会丢失）
+        var _showLoading = true;
+        try {
+            if (sessionStorage.getItem('mc_loaded')) {
+                _showLoading = false;
+            } else {
+                sessionStorage.setItem('mc_loaded', '1');
+            }
+        } catch(e) {}
+    </script>
+    <style>
+        @keyframes mc-spin {
+            to { transform: rotate(360deg); }
+        }
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            background: #0f0f13;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            transition: opacity 0.4s;
+            opacity: 1;
+            pointer-events: none;
+        }
+        .mc-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: mc-spin 0.7s linear infinite;
+        }
+        .mc-loading-text {
+            font-size: 15px;
+            color: #8e8e9b;
+            letter-spacing: 0.5px;
+        }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><circle cx='35' cy='72' r='12' fill='white'/><circle cx='65' cy='64' r='12' fill='white'/><rect x='44' y='20' width='5' height='52' fill='white'/><rect x='74' y='12' width='5' height='52' fill='white'/><rect x='44' y='16' width='35' height='6' rx='3' fill='white'/></svg>">
+    <title>Music Catch</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/pip.css">
+    {% block head %}{% endblock %}
+    <link rel="stylesheet" href="/static/css/responsive.css">
+</head>
+<body>
+    <div id="loadingOverlay">
+        <div class="mc-spinner"></div>
+        <div class="mc-loading-text">正在加载中...</div>
+    </div>
+    <script>
+        (function() {
+            var overlay = document.getElementById('loadingOverlay');
+            if (!_showLoading) {
+                overlay.style.display = 'none';
+                return;
+            }
+            // 同步主题色
+            var theme = document.documentElement.getAttribute('data-theme');
+            if (theme === 'light') {
+                overlay.style.background = '#f4f5f9';
+                var spinner = overlay.querySelector('.mc-spinner');
+                if (spinner) spinner.style.borderTopColor = '#4f46e5';
+                var text = overlay.querySelector('.mc-loading-text');
+                if (text) text.style.color = '#6d6d7c';
+            }
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    overlay.style.opacity = '0';
+                    setTimeout(function() {
+                        overlay.style.display = 'none';
+                    }, 400);
+                }, 300);
+            });
+        })();
+    </script>
+    {% if anti_devtools_script_url %}
+    <!-- gate + heartbeat + anti-F12（开关内嵌在 JS 中） -->
+    <script src="{{ anti_devtools_script_url }}"></script>
+    {% endif %}
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">Music Catch</a>
+            <button class="settings-btn" id="settingsBtn" onclick="toggleSettings()" title="设置">&#9881;</button>
+            <div class="settings-panel" id="settingsPanel">
+                <div class="settings-item">
+                    <span>歌词悬浮窗</span>
+                    <label class="switch">
+                        <input type="checkbox" id="pipLyricsToggle" onchange="togglePipLyrics(this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-hint" id="pipHint"></div>
+            </div>
+        </div>
+        <div class="nav-links">
+            <button class="nav-link theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切换明暗主题">◑</button>
+            <button class="nav-link" onclick="clearAudioCache()" title="清除音频缓存">清缓存</button>
+            <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">搜索</a>
+            <a href="/login" class="nav-link {% if request.url.path == '/login' %}active{% endif %}">登录</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/pip.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/login.css">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <h1>平台登录</h1>
+    <p class="subtitle">选择平台和登录方式</p>
+
+    <div class="platform-tabs" id="platformTabs">
+        {% for pid, cls in platforms.items() %}
+        <button class="platform-tab" data-platform="{{ pid }}"
+                data-methods='{{ platform_info[pid].methods | tojson }}'
+                onclick="selectPlatform('{{ pid }}', '{{ cls.name }}')">
+            {{ cls.name }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <div class="login-section" id="loginSection" style="display:none;">
+        <div class="method-tabs" id="methodTabs">
+            <button class="method-tab" data-method="qrcode" onclick="selectMethod('qrcode')">扫码登录</button>
+            <button class="method-tab" data-method="cookie" onclick="selectMethod('cookie')">Cookie 登录</button>
+            <button class="method-tab" data-method="phone" onclick="selectMethod('phone')">手机号登录</button>
+        </div>
+
+        <div class="method-content" id="method-qrcode">
+            <div class="qr-container">
+                <div class="qr-image" id="qrImage">
+                    <p>点击下方按钮获取二维码</p>
+                </div>
+                <button class="btn btn-primary" onclick="loadQRCode()">获取二维码</button>
+                <p class="qr-status" id="qrStatus"></p>
+            </div>
+        </div>
+
+        <div class="method-content" id="method-cookie" style="display:none;">
+            <div class="form-group">
+                <label>Cookie</label>
+                <textarea id="cookieInput" class="form-input" rows="4"
+                    placeholder="从浏览器复制 Cookie 粘贴到此处..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="loginWithCookie()">登录</button>
+            <p class="form-hint">
+                提示：在浏览器中登录对应平台后，按 F12 打开开发者工具，在 Network 中找到请求的 Cookie 复制过来。
+            </p>
+        </div>
+
+        <div class="method-content" id="method-phone" style="display:none;">
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" id="phoneInput" class="form-input" placeholder="请输入手机号">
+            </div>
+            <div class="form-group" id="codeGroup" style="display:none;">
+                <label>验证码</label>
+                <div class="code-row">
+                    <input type="text" id="codeInput" class="form-input" placeholder="请输入验证码">
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="sendCodeBtn" onclick="sendPhoneCode()">发送验证码</button>
+                <button class="btn btn-primary" id="phoneLoginBtn" onclick="loginWithPhone()" style="display:none;">登录</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="login-section" id="logoutSection" style="display:none;">
+        <div style="text-align:center; padding: 32px 0;">
+            <p style="font-size: 16px; margin-bottom: 16px;"><strong id="logoutPlatformName"></strong> 已登录</p>
+            <div id="logoutUserInfo" style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:20px;"></div>
+            <button class="btn btn-secondary" onclick="doLogout()">退出登录</button>
+        </div>
+    </div>
+
+    <div class="login-result" id="loginResult"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/login.js"></script>
+{% endblock %}

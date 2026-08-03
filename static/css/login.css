@@ -1,0 +1,89 @@
+/* Login Page */
+.login-page h1 {
+    font-size: 28px;
+    margin-bottom: 4px;
+}
+.login-page .subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.platform-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.platform-tab {
+    padding: 10px 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.platform-tab:hover { border-color: var(--accent); }
+.platform-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.method-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    padding: 4px;
+    display: inline-flex;
+}
+
+.method-tab {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.method-tab:hover { color: var(--text-primary); }
+.method-tab.active { background: var(--bg-card); color: var(--text-primary); }
+
+.method-content { animation: fadeIn 0.2s; }
+
+.qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.qr-image {
+    width: 240px;
+    height: 240px;
+    background: #fff;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.qr-image img { width: 100%; height: 100%; }
+.qr-image p { color: #666; font-size: 13px; }
+
+.qr-status {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.login-result {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    display: none;
+}
+.login-result.success { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+.login-result.error { background: rgba(239,68,68,0.1); color: var(--error); border: 1px solid rgba(239,68,68,0.2); }

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/login.css">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <h1>访问验证</h1>
+    <p class="subtitle">此页面受密码保护，请输入访问密码</p>
+
+    <div class="login-section" style="max-width: 360px; margin: 24px auto 0;">
+        <div class="form-group">
+            <label>访问密码</label>
+            <input type="password" id="accessPwdInput" class="form-input" placeholder="请输入访问密码"
+                   onkeydown="if(event.key==='Enter')verifyAccess()">
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="verifyAccess()">验证</button>
+    </div>
+
+    <div class="login-result" id="verifyResult"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/verify.js"></script>
+{% endblock %}
