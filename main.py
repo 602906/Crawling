@@ -103,11 +103,14 @@ async def _security_headers(request: Request, call_next):
     # 仅精确豁免 gate 注册/心跳两个端点，其余 /api/gate/* 一律走校验
     path = request.url.path
     if path.startswith("/api/") and path not in ("/api/gate/register", "/api/gate/heartbeat"):
-        if not anti_devtools.validate_gate_token(request):
+        # 流式端点（代理/下载）放宽指纹校验：移动端下载由浏览器下载管理器
+        # 二次发起，请求头（UA/语言/客户端提示）与页面不同，严格指纹会误杀；
+        # 仍强制 IP 匹配，且这些端点另有 IP 限速兜底
+        stream = path.startswith("/api/proxy") or path.startswith("/api/download")
+        if not anti_devtools.validate_gate_token(request, strict_fp=not stream):
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
         # token 校验通过后仍按 IP 限速：杜绝脚本持有有效 token 无限量调用 API
         # 流式端点（视频/音频代理、下载）放宽，避免误伤正常播放
-        stream = path.startswith("/api/proxy") or path.startswith("/api/download")
         if not _check_rate(request, max_req=config.STREAM_RATE_MAX if stream else config.API_RATE_MAX, bucket="api" if not stream else "stream"):
             return JSONResponse({"detail": "请求过于频繁，请稍后再试"}, status_code=429)
 

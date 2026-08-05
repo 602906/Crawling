@@ -241,11 +241,15 @@ def register_gate_token(request: Request) -> tuple[str, str]:
     return token, _gen_cookie_name(config.GATE_COOKIE_NAME)
 
 
-def validate_gate_token(request: Request) -> bool:
+def validate_gate_token(request: Request, strict_fp: bool = True) -> bool:
     """验证门禁 cookie（动态名）+ IP/浏览器指纹。首次通过后延长 TTL。
 
     浏览器可能残留多个历史动态名 cookie（服务多次重启后旧 token 失效），
     因此遍历全部门禁 cookie，任一有效即放行；全部失效才拒绝。
+
+    strict_fp=False 时跳过浏览器指纹校验（流式端点专用）：移动端下载请求由
+    浏览器下载管理器发起，UA/语言/客户端提示等头与页面不同，严格指纹会误杀；
+    此时仍强制 IP 匹配，且这些端点另有 IP 限速兜底。
     """
     _gc_tokens()
     tokens = _extract_gate_tokens(request)
@@ -259,8 +263,12 @@ def validate_gate_token(request: Request) -> bool:
         if time.time() > exp:
             del _tokens[token]
             continue
-        # IP/浏览器指纹校验：防止 token 被窃取后在异地/非浏览器环境使用
-        if ip != bound_ip or fp != bound_fp:
+        # IP 必须一致：防止 token 被窃取后在异地使用
+        if ip != bound_ip:
+            del _tokens[token]
+            continue
+        # 严格模式额外校验浏览器指纹：防止 token 被窃取后脚本化使用
+        if strict_fp and fp != bound_fp:
             del _tokens[token]
             continue
         # 验证通过 → 延长到正式 TTL

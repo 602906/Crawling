@@ -11,7 +11,7 @@ PERSIST_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(
 _DEFAULTS = {
     "host": "0.0.0.0",
     "port": 8000,
-    "password": "musiccatch",
+    "password": "1145",
     "https": False,
     "ssl": False,
     "ssl_certfile": "cert.pem",
