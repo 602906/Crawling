@@ -31,6 +31,19 @@
 - 右键菜单：播放、加入列表、收藏、下载、歌曲信息、分享（支持"从当前播放位置分享"，带时间戳跳转）
 - 倍速播放、音量/静音、播放进度记忆
 
+### 一起听歌
+- **10 个常驻房间**：多人实时同步播放同一首歌；传输层可配置：默认 HTTP 长轮询（兼容不支持 WebSocket 的 CDN 与 Nginx 默认配置），可切换 WebSocket 低延迟推送（config.py 中 `LT_TRANSPORT` 改为 `"ws"`，全局统一）；**WS 模式列表页即建立全局连接**，房间列表实时推送（人数/当前播放即时刷新，替代列表轮询），进房/离开/操作全部走 WS 消息，刷新页面自动重连恢复
+- **房主权威播放**：房主本地播放即为权威（不校验/校准进度），全员自动对齐；进度同步按需进行——新成员进房时服务端询问房主当前进度（`ask_sync` 询问-应答，替代房主周期上报），暂停/切歌/拖动仅房主可操作，非房主播放按钮为本地控制
+- **成员协作**：任何成员可添加歌曲进队列，房主删除/管理队列、自定义房间名、可转让房主；房主离开自动转让给最早加入的成员
+- **房间播放缓存**：同一房间多人听同一首歌复用播放地址（免反复请求平台 API），播放中持续续期、切歌/停止后超时自动删除（`LT_CACHE_MARGIN`，默认 5 分钟）
+- **昵称与会话**：用户名保存在本机浏览器（听客户端模型——不绑定 IP、不做全局占用、不限改名次数）；进房时服务端下发会话 Cookie（HttpOnly，30 天），**刷新页面自动恢复身份**，无需重新输入
+- **重名保护**：进房前先零副作用预检（不触碰房间状态），重名仅提示"进入失败"、不进入房间，不影响房主播放；进房请求内置兜底校验防竞态
+- **断线自愈**：门禁 Token 失效（休眠唤醒/后台节流/服务重启）时自动重新注册并重连，403 严格区分"门禁失效"与"重名"，房主播放不被打断、不会被踢回主页
+- **独立音量**：音量/静音本地控制，不参与房间同步（各用户独立）；与主页共用音量设置（localStorage），跨标签页实时联动
+- **分享房间**：`?room=N` 链接直达，进入后自动清理 URL 参数
+- **歌词联动**：复用全局歌词系统（同步滚动、高亮、导出、悬浮窗），房主点击歌词行即可同步跳转
+- **配置联动**：名称长度上限等提示文案与 `config.py` 统一（改配置即改提示，前后端一致）
+
 ### 平台登录
 | 平台 | 扫码 | Cookie | 手机号 |
 | ---- | ---- | ------ | ------ |
@@ -78,8 +91,9 @@
 ```
 MusicCatch/
 ├── main.py                  # FastAPI 应用入口：路由、中间件、安全防护、代理/下载
-├── config.py                # 配置加载（config.ini + 命令行参数）与默认值
+├── config.py                # 全部配置常量（不修改即默认值，命令行参数可覆盖）
 ├── anti_devtools.py         # 反 F12 + 浏览器门禁（动态 Cookie 名、Token 挑战、JS 混淆）
+├── listen_together.py       # 一起听歌：10 常驻房间 + 双传输同步（HTTP 长轮询 / WS 全局连接，config 切换）、房主权威播放、按需询问-应答同步、会话 Cookie、重名预检
 ├── requirements.txt         # Python 依赖
 ├── platforms/
 │   ├── __init__.py          # 平台注册表 PLATFORMS
@@ -90,13 +104,16 @@ MusicCatch/
 ├── templates/               # Jinja2 页面模板
 │   ├── base.html            # 布局骨架：主题、导航、加载动画、反 F12 脚本注入
 │   ├── index.html           # 主页：搜索 + 播放器 + 歌词 + 列表 + 收藏
+│   ├── listen_together.html # 一起听歌页：房间列表 + 播放器 + 成员/队列 + 歌词面板
 │   ├── login.html           # 平台登录页
 │   └── verify.html          # 访问密码验证页
 ├── static/
 │   ├── css/                 # 样式（base / player / search / lyrics / playlist /
-│   │                        #  favorites / context-menu / login / pip / responsive）
+│   │                        #  favorites / context-menu / login / pip / responsive /
+│   │                        #  listen-together）
 │   └── js/                  # 前端逻辑（app / player / search / lyrics / playlist /
-│                            #  favorites / context-menu / login / pip / verify）
+│                            #  favorites / context-menu / login / pip / verify /
+│                            #  listen-together）
 └── .sessions/               # 平台登录会话（运行时自动生成）
 ```
 
@@ -127,48 +144,77 @@ python main.py
 
 ### 命令行参数
 
+**config.py 中每个可配置常量都有对应的命令行参数**（常量名转小写连字符：`LT_TRANSPORT` → `--lt-transport`；bool 常量可用 `--no-xxx` 关闭），完整列表见 `python main.py --help`。
+
 ```bash
 python main.py                        # 默认配置启动
+python main.py --debug                # 开启调试日志（进房/动作/缓存命中/门禁/搜索等）
 python main.py --port 9000            # 指定端口
 python main.py --host 127.0.0.1 --port 3000   # 指定地址和端口
 python main.py --password abc123      # 启用访问密码
 python main.py --https                # 反向代理 HTTPS 模式
 python main.py --ssl --ssl-certfile cert.pem --ssl-keyfile key.pem   # 本地证书 HTTPS
+python main.py --lt-transport ws      # 一起听歌切换 WebSocket 低延迟推送
+python main.py --lt-room-count 20     # 常驻房间数改为 20
+python main.py --video-playback       # 允许 B 站视频播放
 ```
 
-配置优先级：**命令行参数 > config.ini > 默认值**
+- 逗号分隔型常量（域名/端口白名单）直接传逗号字符串：`--allowed-proxy-domains "163.com,kugou.com"`
+- Referer 映射传 `域名=Referer` 逗号分隔：`--proxy-referer-map "163.com=https://music.163.com/"`
+- 密码支持哈希格式：`--password '$sha256$<salt>$<hexdigest>'`
+
+### 可选 config.ini（手动创建）
+
+程序目录下可放一个 `config.ini`（**程序不会自动创建**，参考 [config.ini.example](config.ini.example) 复制修改）。键名 = config.py 常量名（不区分大小写），类型与 config.py 一致，未列出的项保持 config.py 默认值：
+
+```ini
+[basic]
+port = 9000                  # 监听端口
+lt_transport = ws            # 一起听歌传输方式
+debug = true                 # 调试日志（bool 支持 true/false/yes/no/on/off/1/0）
+```
+
+**配置优先级：命令行参数 > config.ini > config.py**（仅命令行显式传入的参数覆盖 config.ini；两者均未设置时用 config.py 默认值）
 
 ---
 
 ## ⚙️ 配置说明
 
-在程序同级目录下创建 `config.ini`：
+所有配置集中在 [config.py](config.py) 顶部常量（**不修改即默认值**，改后重启生效）；**每个常量均有对应命令行参数**（见上方"命令行参数"），命令行优先级更高：
 
-```ini
-[server]
-host = 0.0.0.0
-port = 8000
-password = 你的访问密码
-https = false
-ssl = false
-ssl_certfile = cert.pem
-ssl_keyfile = key.pem
-forwarded_allow_ips = 127.0.0.1
-video_playback = true
-```
-
-| 配置项 | 默认值 | 说明 |
-| ------ | ------ | ---- |
-| `host` | `0.0.0.0` | 监听地址 |
-| `port` | `8000` | 监听端口 |
-| `password` | `musiccatch` | 访问密码（保护登录等敏感接口）；支持 `$sha256$<salt>$<hexdigest>` 哈希格式，明文不落盘；空字符串表示不启用 |
-| `https` | `false` | 以 HTTPS 对外提供服务（TLS 由反向代理终止时设为 `true`）：信任代理转发头，并为 Cookie 加 Secure 标记 |
-| `ssl` | `false` | 由本程序直接加载证书提供 HTTPS（不经反向代理时使用） |
-| `ssl_certfile` / `ssl_keyfile` | `cert.pem` / `key.pem` | `ssl=true` 时使用的证书与私钥路径 |
-| `forwarded_allow_ips` | `127.0.0.1` | `https` 模式下可信代理 IP 白名单（逗号分隔），防止伪造 X-Forwarded-For 绕过限速与 Token 指纹绑定；仅当 Nginx 与后端同机时保持默认值 |
-| `video_playback` | `false` | 是否支持 B 站视频播放：`false` 时 B 站仅播放/下载音频，视频接口停用 |
+| 常量 | 默认值 | 说明 |
+| ---- | ------ | ---- |
+| `DEBUG` | `False` | 调试日志开关：开启后输出 INFO+/DEBUG+ 调试日志（进房/动作/缓存命中/门禁/搜索等），关闭时仅输出 WARNING+（重要异常与拒绝事件） |
+| `HOST` | `"0.0.0.0"` | 监听地址 |
+| `PORT` | `8000` | 监听端口 |
+| `PASSWORD` | `"musiccatch"` | 访问密码（保护登录等敏感接口）；支持 `$sha256$<salt>$<hexdigest>` 哈希格式，明文不落盘；空字符串表示不启用 |
+| `HTTPS` | `False` | 以 HTTPS 对外提供服务（TLS 由反向代理终止时设为 `True`）：信任代理转发头，并为 Cookie 加 Secure 标记 |
+| `SSL` | `False` | 由本程序直接加载证书提供 HTTPS（不经反向代理时使用） |
+| `SSL_CERTFILE` / `SSL_KEYFILE` | `"cert.pem"` / `"key.pem"` | `SSL=True` 时使用的证书与私钥路径 |
+| `FORWARDED_ALLOW_IPS` | `"127.0.0.1"` | `HTTPS=True` 模式下可信代理 IP 白名单（逗号分隔），防止伪造 X-Forwarded-For 绕过限速与 Token 指纹绑定；仅当 Nginx 与后端同机时保持默认值 |
+| `VIDEO_PLAYBACK_ENABLED` | `False` | 是否支持 B 站视频播放：`True` 时 B 站可播放/下载视频 |
 
 > ⚠️ 默认密码 `musiccatch` 仅为开箱即用，部署到公网前务必修改。
+
+### 一起听歌配置（config.py 常量）
+
+一起听歌配置直接在 [config.py](config.py) 的"一起听歌"段修改（不修改即默认值，改后重启生效）：
+
+| 常量 | 默认值 | 说明 |
+| ------ | ------ | ---- |
+| `LT_TRANSPORT` | `"http"` | 传输方式：`"http"`（长轮询，兼容不支持 WebSocket 的 CDN）或 `"ws"`（WebSocket 低延迟推送，需 `uvicorn[standard]`），全局统一；ws 模式列表页建连、rooms 实时推送、按需询问-应答同步 |
+| `LT_WS_URL` | `""` | WebSocket 连接地址覆盖：配置完整 WS 地址（如 `wss://ws.example.com/api/listen-together/ws`）时前端改从该地址连接（WS 与 HTTP 走不同入口/CDN 的场景），空=当前域名默认端点 |
+| `LT_ROOM_COUNT` | `10` | 常驻房间数（房间始终存在，空房恢复默认名"x号房"） |
+| `LT_QUEUE_MAX` | `100` | 单房间播放队列上限（防内存滥用） |
+| `LT_NAME_MAX_LEN` | `20` | 用户名 / 自定义房间名最大长度（**前后端提示与输入框上限统一跟随此值**） |
+| `LT_NAME_TTL` | `600` | 用户名活动记录宽限（秒）：停止活动超时清除（名字不占用，可随时再次使用） |
+| `LT_ROOMS_REFRESH` | `10000` | 房间列表自动刷新间隔（毫秒，仅 http 模式生效；ws 模式由服务端实时推送） |
+| `LT_SYNC_INTERVAL` | `5000` | 房主播放位置同步上报间隔（毫秒，仅 http 模式生效；ws 模式改为新成员进房时按需询问-应答） |
+| `LT_POLL_TIMEOUT` | `20` | 长轮询最长挂起（秒）：状态无变化时超时返回，客户端立即续接 |
+| `LT_MEMBER_TTL` | `90` | 成员离线判定（秒）：停止轮询超时视为离开（离开接口 + 此兜底清理） |
+| `LT_CACHE_MARGIN` | `300` | 房间播放缓存余量（秒）：同房间多人听同一首歌复用播放地址，播放中持续续期，切歌/停止后超过此时长自动删除 |
+
+> 已废弃（当前版本不再使用，保留仅为兼容）：`LT_RENAME_DAILY_LIMIT`、`LT_ACTION_RATE_MAX`。
 
 ---
 
@@ -180,6 +226,7 @@ video_playback = true
 4. **下载**：右键歌曲 → 下载 → 选择音质；或打开"歌曲信息"查看可用音质。
 5. **歌词**：播放时右侧滑出歌词面板，可复制或下载 LRC；设置中可开启歌词悬浮窗（画中画）。
 6. **收藏/列表**：播放条按钮或右键菜单管理。
+7. **一起听歌**：进入"一起听歌"页 → 首次设置昵称（保存在本机浏览器）→ 加入任意房间；房主负责播放控制，其余成员自动跟随；重名进入会被拦截并提示。
 
 ---
 
@@ -205,8 +252,18 @@ video_playback = true
 | GET | `/api/status` | 各平台登录状态 |
 | POST | `/api/logout/{platform}` | 退出登录 |
 | GET | `/api/proxy?url=...` | 媒体流代理（白名单 + Range 支持） |
+| GET | `/api/listen-together/config` | 一起听歌前端配置（名称长度上限等，与 config.py 联动） |
+| POST | `/api/listen-together/join` | 设置/恢复昵称（body: `{name}`） |
+| POST | `/api/listen-together/rename` | 修改昵称（body: `{name}`，无次数限制） |
+| GET | `/api/listen-together/rooms` | 房间列表（人数 / 播放中，`name` 必带） |
+| GET | `/api/listen-together/precheck` | 进房前重名预检（零副作用，重名返回 403） |
+| GET | `/api/listen-together/poll` | 房间长轮询（`room_id` / `version` / `name`，进房 + 状态推送；HTTP 传输模式） |
+| WS | `/api/listen-together/ws` | WebSocket 实时通道（`name`，连接即收房间列表；消息：`enter/leave/action/sync/ping`，服务端推 `rooms/state/ask_sync/enter_ok/enter_fail`；WS 传输模式，需 `uvicorn[standard]`） |
+| POST | `/api/listen-together/action` | 房间动作（add/play/pause/next/prev/seek/remove/transfer/rename_room/sync，仅房主可播放控制） |
+| POST | `/api/listen-together/leave` | 离开房间 |
 
 > 除门禁注册/心跳外，所有 `/api/` 接口均需有效门禁 Token；敏感接口（登录、状态）另需密码验证。流式端点（proxy/download）限速放宽以避免误伤正常播放。
+> 一起听歌接口（除 config 外）统一带 `?name=` 用户名参数，进房成功通过 `Set-Cookie` 下发会话 Cookie（`mc_lt_sid`，HttpOnly），刷新页面凭 Cookie 恢复身份；同名成员且非本人会话一律 403 拦截。
 
 ---
 
@@ -236,7 +293,7 @@ server {
 }
 ```
 
-对应后端配置：`config.ini` 中 `https = true`，`forwarded_allow_ips` 保持 `127.0.0.1`（Nginx 与后端同机）或改为 Nginx 服务器实际 IP。
+对应后端配置：config.py 中 `HTTPS = True`，`FORWARDED_ALLOW_IPS` 保持 `"127.0.0.1"`（Nginx 与后端同机）或改为 Nginx 服务器实际 IP。
 
 ### ⚠️ 注意事项
 

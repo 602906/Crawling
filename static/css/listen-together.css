@@ -1,0 +1,478 @@
+/* ── 一起听歌 ── */
+/* 通用隐藏（歌词面板除外：它由 lyrics.css 的 transform 控制滑出动画，display:none 会把拉手按钮一起藏掉） */
+.hidden:not(#lyricsPanel) { display: none !important; }
+
+/* 歌词侧栏（与主页同款面板）：收起时拉手固定在屏幕右缘作为入口按钮（点击滑出，动画在 lyrics.css）。
+   仅作用于本页；≤640px 移动端由 responsive.css 覆盖为右下角圆形按钮 */
+.lyrics-panel.hidden .lyrics-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    left: auto;
+    transform: translateY(-50%);
+    z-index: 151;
+}
+
+/* 本页无底部播放器，面板高度占满导航以下全部（覆盖 lyrics.css 预留的 72px 播放器高度） */
+#ltApp .lyrics-panel {
+    height: calc(100vh - 56px);
+}
+
+/* 收起改用 right 偏移滑出：面板的 translateX(100%) 会作为包含块把 fixed 拉手一起带出屏幕
+   （transform≠none 时，position:fixed 子元素相对该祖先定位而非视口）。
+   故桌面端移除 transform、用 right 过渡实现同款动画（与 responsive.css 移动端同法）；
+   ≤640px 移动端仍由 responsive.css 处理 */
+@media (min-width: 641px) {
+    #ltApp .lyrics-panel {
+        transition: right 0.3s ease, transform 0.3s ease;
+    }
+    #ltApp .lyrics-panel.hidden {
+        transform: none;
+        right: -380px;
+    }
+}
+
+.lt-view { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+
+/* 按钮 */
+.lt-btn {
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+.lt-btn.primary { background: var(--accent); color: #fff; }
+.lt-btn.primary:hover { background: var(--accent-hover); }
+.lt-btn.ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.lt-btn.ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 弹窗 */
+.lt-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+}
+.lt-modal {
+    width: min(360px, 90vw);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 16px 48px var(--shadow-strong);
+}
+.lt-modal h3 { font-size: 16px; margin-bottom: 8px; }
+.lt-modal-hint { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+.lt-modal input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+}
+.lt-modal input:focus { border-color: var(--accent); }
+.lt-modal-actions { margin-top: 16px; text-align: right; }
+
+/* 房间列表 */
+.lt-lobby-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.lt-lobby-header h2 { font-size: 22px; }
+.lt-user { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-secondary); }
+.lt-user b { color: var(--text-primary); }
+
+.lt-room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+.lt-room-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.2s;
+}
+.lt-room-card:hover { border-color: var(--accent); }
+.lt-room-card .lt-room-name { font-size: 16px; font-weight: 600; }
+.lt-room-card .lt-room-meta { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+.lt-room-card .lt-room-meta b { color: var(--text-primary); font-weight: 500; }
+.lt-room-card .lt-room-song {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-room-card .lt-room-enter {
+    margin-top: 4px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 0;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+.lt-room-card .lt-room-enter:hover { background: var(--accent-hover); }
+.lt-room-card .lt-room-enter:disabled { background: var(--bg-hover); color: var(--text-secondary); cursor: default; }
+
+/* 房间视图 */
+.lt-room-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.lt-room-header h3 { font-size: 18px; }
+.lt-online { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+
+.lt-player {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.lt-now {
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+.lt-now .lt-now-sub { display: block; font-size: 12px; font-weight: 400; color: var(--text-secondary); margin-top: 2px; }
+.lt-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+}
+.lt-ctrl-btn {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+.lt-ctrl-btn:hover { background: var(--bg-hover); }
+.lt-ctrl-btn.lt-play { background: var(--accent); }
+.lt-ctrl-btn.lt-play:hover { background: var(--accent-hover); }
+.lt-progress { display: flex; align-items: center; gap: 10px; }
+.lt-progress input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+}
+.lt-progress input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.lt-progress input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+/* 非房主：进度条只读（可看进度，不可拖动） */
+.lt-progress input[type="range"]:disabled { opacity: 0.5; }
+.lt-progress input[type="range"]:disabled::-webkit-slider-thumb { cursor: default; }
+.lt-progress input[type="range"]:disabled::-moz-range-thumb { cursor: default; }
+#ltTime { font-size: 12px; color: var(--text-secondary); width: 90px; text-align: center; flex-shrink: 0; }
+
+.lt-main {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 16px;
+    align-items: start;
+}
+.lt-members, .lt-queue {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+}
+.lt-panel-title, .lt-queue-head { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.lt-queue-head { display: flex; align-items: center; justify-content: space-between; }
+.lt-queue-head .lt-btn { padding: 6px 12px; font-size: 13px; }
+
+.lt-member-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.lt-member-item:hover { background: var(--bg-hover); }
+.lt-member-item .lt-member-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-member-item .lt-member-tag {
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+.lt-member-item .lt-transfer-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+.lt-member-item .lt-transfer-btn:hover { background: var(--bg-hover); color: var(--accent); }
+.lt-member-empty { font-size: 12px; color: var(--text-secondary); padding: 8px; }
+
+.lt-queue-list { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
+.lt-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.lt-queue-item:hover { background: var(--bg-hover); }
+.lt-queue-item.current { background: var(--bg-hover); }
+.lt-queue-item.current .lt-queue-title { color: var(--accent); }
+.lt-queue-info { flex: 1; min-width: 0; }
+.lt-queue-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-queue-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-queue-item .lt-remove-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+.lt-queue-item .lt-remove-btn:hover { background: var(--bg-hover); color: var(--error); }
+.lt-queue-empty { font-size: 12px; color: var(--text-secondary); padding: 10px; text-align: center; }
+
+/* 添加歌曲搜索面板 */
+.lt-search-panel {
+    margin-top: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+}
+.lt-search-head { display: flex; gap: 8px; margin-bottom: 12px; }
+.lt-search-head input {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+}
+.lt-search-head input:focus { border-color: var(--accent); }
+.lt-search-head .lt-btn { padding: 8px 14px; font-size: 13px; flex-shrink: 0; }
+.lt-search-results { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+.lt-search-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.lt-search-item:hover { background: var(--bg-hover); }
+.lt-search-item .lt-search-cover {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--bg-hover);
+}
+.lt-search-item .lt-search-cover-empty { background: var(--bg-hover); }
+/* 平台徽章（与主页搜索一致） */
+.platform-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+.badge-kugou { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-netease { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-bilibili { background: rgba(251,114,153,0.15); color: #fb7299; }
+[data-theme="light"] .badge-kugou { color: #2563eb; }
+[data-theme="light"] .badge-netease { color: #dc2626; }
+[data-theme="light"] .badge-bilibili { color: #d6336c; }
+.lt-search-item .platform-badge { margin-left: 6px; }
+.lt-search-item .lt-search-duration { margin-left: 6px; color: var(--text-secondary); }
+.lt-search-item .lt-search-info { flex: 1; min-width: 0; }
+.lt-search-item .lt-search-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-search-item .lt-search-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.lt-search-item .lt-add-btn {
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: inherit;
+}
+.lt-search-item .lt-add-btn:hover { background: var(--accent-hover); }
+.lt-search-item .lt-add-btn:disabled { background: var(--bg-hover); color: var(--text-secondary); cursor: default; }
+.lt-search-empty { font-size: 12px; color: var(--text-secondary); padding: 10px; text-align: center; }
+
+/* 窄屏：成员/队列改单列 */
+@media (max-width: 640px) {
+    .lt-main { grid-template-columns: 1fr; }
+    .lt-room-header h3 { flex: 1; }
+    .lt-online { margin-left: 0; }
+}
+
+/* ── 音量控制（与主页 player.css 同款结构：悬停弹出竖向滑条，触屏点击展开）── */
+.volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.volume-btn svg {
+    display: block;
+    pointer-events: none;
+}
+.volume-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 34px;
+    height: 118px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px var(--shadow-strong);
+    z-index: 100;
+}
+@media (hover: hover) {
+    .volume-control:hover .volume-popup {
+        display: block;
+    }
+}
+.volume-popup.open {
+    display: block;
+}
+.volume-slider {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 94px;
+    height: 24px;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+}
+.volume-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+}
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.volume-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+}
+.volume-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+}

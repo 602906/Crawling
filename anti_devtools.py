@@ -9,6 +9,7 @@
 
 import base64
 import hashlib
+import logging
 import random
 import secrets
 import string
@@ -18,6 +19,8 @@ from fastapi.responses import HTMLResponse
 from starlette.requests import Request
 
 import config
+
+logger = logging.getLogger(__name__)
 
 
 def _rand_name(length: int = 12) -> str:
@@ -238,6 +241,7 @@ def register_gate_token(request: Request) -> tuple[str, str]:
     token = secrets.token_hex(24)
     ip, fp = _client_fingerprint(request)
     _tokens[token] = (time.time() + config.GATE_PENDING_TTL, ip, fp)
+    logger.info("门禁注册：IP=%s", ip)
     return token, _gen_cookie_name(config.GATE_COOKIE_NAME)
 
 
@@ -262,17 +266,22 @@ def validate_gate_token(request: Request, strict_fp: bool = True) -> bool:
         exp, bound_ip, bound_fp = _tokens[token]
         if time.time() > exp:
             del _tokens[token]
+            logger.warning("门禁校验拒绝：token 过期（IP=%s）", ip)
             continue
         # IP 必须一致：防止 token 被窃取后在异地使用
         if ip != bound_ip:
             del _tokens[token]
+            logger.warning("门禁校验拒绝：IP 不匹配（绑定 %s，当前 %s）", bound_ip, ip)
             continue
         # 严格模式额外校验浏览器指纹：防止 token 被窃取后脚本化使用
         if strict_fp and fp != bound_fp:
             del _tokens[token]
+            logger.warning("门禁校验拒绝：浏览器指纹不匹配（IP=%s）", ip)
             continue
-        # 验证通过 → 延长到正式 TTL
-        _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, ip, fp)
+        # 验证通过 → 延长到正式 TTL。宽松模式（WS/流式端点）请求头与注册时不同
+        # （如 WS 握手缺 Sec-CH-UA），若用当前指纹覆盖绑定，会污染后续严格校验，
+        # 故宽松通过时保留原绑定指纹，仅更新 TTL 与 IP
+        _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, ip, bound_fp if not strict_fp else fp)
         return True
     return False
 
@@ -295,7 +304,18 @@ def heartbeat_gate_token(request: Request) -> bool:
             continue
         _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, ip, fp)
         return True
+    logger.debug("门禁心跳未续期：token 均失效（IP=%s）", ip)
     return False
+
+
+def gate_token_alive(token: str) -> bool:
+    """判断门禁 token 是否仍有效（未过期且未被删除）。
+
+    供内部模块（如一起听歌）把门禁 token 当作用户会话凭证：
+    token 过期即视为会话结束，其绑定的用户名随之释放。
+    """
+    _gc_tokens()
+    return token in _tokens
 
 
 # ── 挑战页 HTML ──

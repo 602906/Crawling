@@ -131,6 +131,7 @@
         </div>
         <div class="nav-links">
             <button class="nav-link theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切换明暗主题">◑</button>
+            <a href="/listen-together" class="nav-link {% if request.url.path == '/listen-together' %}active{% endif %}">一起听歌</a>
             <button class="nav-link" onclick="clearAudioCache()" title="清除音频缓存">清缓存</button>
             <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">搜索</a>
             <a href="/login" class="nav-link {% if request.url.path == '/login' %}active{% endif %}">登录</a>

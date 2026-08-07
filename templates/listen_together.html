@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/listen-together.css">
+<link rel="stylesheet" href="/static/css/lyrics.css">
+<style>
+    /* 歌词面板关键样式内联，避免 CSS 文件缓存导致面板/入口按钮失效 */
+    /* 通用隐藏排除歌词面板：它由 lyrics.css 的 transform 控制滑出动画，display:none 会把拉手按钮一起藏掉 */
+    .hidden:not(#lyricsPanel) { display: none !important; }
+    /* 收起时拉手固定在屏幕右缘作为入口按钮（桌面端；≤640px 由 responsive.css 覆盖为右下角圆形按钮） */
+    .lyrics-panel.hidden .lyrics-tab {
+        position: fixed;
+        right: 0;
+        top: 50%;
+        left: auto;
+        transform: translateY(-50%);
+        z-index: 151;
+    }
+    /* 本页无底部播放器，面板高度占满导航以下全部（覆盖 lyrics.css 预留的 72px 播放器高度） */
+    #ltApp .lyrics-panel { height: calc(100vh - 56px); }
+</style>
+{% endblock %}
+{% block content %}
+<div id="ltApp">
+    <!-- 昵称设置弹窗（首次进入 / 名字被占用时） -->
+    <div class="lt-modal-backdrop hidden" id="ltNameModal">
+        <div class="lt-modal">
+            <h3 id="ltNameModalTitle">设置你的昵称</h3>
+            <p class="lt-modal-hint" id="ltNameModalHint">进入一起听歌需要先设置昵称，昵称保存在本机浏览器</p>
+            <input id="ltNameInput" maxlength="20" placeholder="输入昵称">
+            <div class="lt-modal-actions">
+                <button class="lt-btn primary" id="ltNameConfirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 房间列表视图 -->
+    <div id="ltLobby" class="lt-view">
+        <div class="lt-lobby-header">
+            <h2>一起听歌</h2>
+            <div class="lt-user">
+                <span>昵称：<b id="ltMyName">-</b></span>
+                <button class="lt-btn ghost" id="ltRenameBtn">修改昵称</button>
+            </div>
+        </div>
+        <div class="lt-room-grid" id="ltRoomGrid"></div>
+    </div>
+
+    <!-- 房间视图 -->
+    <div id="ltRoom" class="lt-view hidden">
+        <div class="lt-room-header">
+            <button class="lt-btn ghost" id="ltBackBtn">返回列表</button>
+            <h3 id="ltRoomName">-</h3>
+            <button class="lt-btn ghost hidden" id="ltRenameRoomBtn">改房间名</button>
+            <button class="lt-btn ghost" id="ltShareBtn" title="复制房间链接分享给好友">分享房间</button>
+            <span class="lt-online" id="ltOnline"></span>
+        </div>
+
+        <div class="lt-player">
+            <div class="lt-now" id="ltNowPlaying">暂无播放</div>
+            <div class="lt-controls">
+                <button class="lt-ctrl-btn" id="ltPrevBtn" title="上一首"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                <button class="lt-ctrl-btn lt-play" id="ltPlayBtn" title="播放/暂停"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+                <button class="lt-ctrl-btn" id="ltNextBtn" title="下一首"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+                <!-- 音量：本地独立设置，与主页共用 localStorage（mc_volume/mc_muted），跨标签页实时联动 -->
+                <div class="volume-control">
+                    <button class="lt-ctrl-btn volume-btn" id="ltVolumeBtn" title="音量"></button>
+                    <div class="volume-popup" id="ltVolumePopup">
+                        <input type="range" class="volume-slider" id="ltVolumeSlider" min="0" max="100" value="100">
+                    </div>
+                </div>
+            </div>
+            <div class="lt-progress">
+                <input type="range" id="ltProgress" min="0" max="100" value="0" title="拖动同步进度">
+                <span id="ltTime">0:00 / 0:00</span>
+            </div>
+        </div>
+
+        <!-- 歌词侧滑面板（与主播放器同款；点击歌词行跳转仅房主，随房间同步） -->
+        <div class="lyrics-panel hidden" id="lyricsPanel">
+            <div class="lyrics-tab" id="lyricsTab" onclick="toggleLyrics()">&#8249;</div>
+            <div class="lyrics-header">
+                <span class="lyrics-title" id="lyricsTitle">歌词</span>
+                <div class="lyrics-export" id="lyricsExport" style="display:none;">
+                    <button class="lyrics-export-btn" onclick="toggleLyricsExportMenu(event)" title="导出歌词">&#10515;</button>
+                    <div class="lyrics-export-menu" id="lyricsExportMenu">
+                        <div class="lyrics-export-item" onclick="copyLyricsText()">复制完整歌词</div>
+                        <div class="lyrics-export-item" onclick="downloadLrcFile()">下载 LRC 歌词</div>
+                    </div>
+                </div>
+                <button class="lyrics-close" onclick="toggleLyrics()">&#10005;</button>
+            </div>
+            <div class="lyrics-content" id="lyricsContent">
+                <p class="lyrics-empty">播放歌曲后显示歌词</p>
+            </div>
+        </div>
+
+        <div class="lt-main">
+            <div class="lt-members">
+                <div class="lt-panel-title">成员</div>
+                <div id="ltMembers"></div>
+            </div>
+            <div class="lt-queue">
+                <div class="lt-queue-head">
+                    <span>播放队列</span>
+                    <button class="lt-btn primary" id="ltAddBtn">添加歌曲</button>
+                </div>
+                <div class="lt-queue-list" id="ltQueueList"></div>
+            </div>
+        </div>
+
+        <!-- 添加歌曲搜索面板 -->
+        <div class="lt-search-panel hidden" id="ltSearchPanel">
+            <div class="lt-search-head">
+                <input id="ltSearchInput" placeholder="搜索歌曲关键词..." maxlength="100">
+                <button class="lt-btn primary" id="ltSearchGo">搜索</button>
+                <button class="lt-btn ghost" id="ltSearchClose">关闭</button>
+            </div>
+            <div class="lt-search-results" id="ltSearchResults"></div>
+        </div>
+    </div>
+</div>
+<audio id="ltAudio"></audio>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/lyrics.js"></script>
+<script src="/static/js/listen-together.js"></script>
+{% endblock %}

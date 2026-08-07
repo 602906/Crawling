@@ -96,9 +96,9 @@ function _stylePipWindow(win) {
             '<div id="pipControls">' +
                 '<div id="pipSeparator"></div>' +
                 '<div id="pipBtnRow">' +
-                '<button class="pip-ctrl-btn" id="pipPrevBtn" title="上一首">&#9198;</button>' +
-                '<button class="pip-ctrl-btn" id="pipPlayBtn" title="播放/暂停">&#9654;</button>' +
-                '<button class="pip-ctrl-btn" id="pipNextBtn" title="下一首">&#9197;</button>' +
+                '<button class="pip-ctrl-btn" id="pipPrevBtn" title="上一首"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>' +
+                '<button class="pip-ctrl-btn" id="pipPlayBtn" title="播放/暂停"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
+                '<button class="pip-ctrl-btn" id="pipNextBtn" title="下一首"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>' +
                 '</div>' +
             '</div>' +
         '</div>' +
@@ -111,6 +111,8 @@ function _stylePipWindow(win) {
         '  var controls = document.getElementById("pipControls");',
         '  var bottomBar = document.getElementById("pipBottomBar");',
         '  var playBtn = document.getElementById("pipPlayBtn");',
+        '  var ICO_PLAY = \'<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>\';',
+        '  var ICO_PAUSE = \'<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>\';',
         '',
         '  // 按钮点击 → 通知主页',
         '  function sendAction(act) {',
@@ -123,7 +125,7 @@ function _stylePipWindow(win) {
         '  // 接收主页发来的播放状态',
         '  window.addEventListener("message", function(e) {',
         '    if (e.data && e.data.type === "pip-state") {',
-        '      playBtn.innerHTML = e.data.playing ? "&#9646;&#9646;" : "&#9654;";',
+        '      playBtn.innerHTML = e.data.playing ? ICO_PAUSE : ICO_PLAY;',
         '    }',
         '  });',
         '',

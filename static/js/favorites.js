@@ -37,9 +37,9 @@ let _showingFavorites = false;
 
     function updatePlayerFavBtn() {
         const btn = document.getElementById('playerFavBtn');
-        if (!_currentSong) { btn.textContent = '♡'; btn.classList.remove('active'); return; }
+        if (!_currentSong) { btn.innerHTML = _ICONS.favBorder; btn.classList.remove('active'); return; }
         const fav = isFavorite(_currentSong);
-        btn.textContent = fav ? '♥' : '♡';
+        btn.innerHTML = fav ? _ICONS.fav : _ICONS.favBorder;
         btn.classList.toggle('active', fav);
     }
 

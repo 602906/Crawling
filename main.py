@@ -2,6 +2,7 @@ import os
 import asyncio
 import hashlib
 import ipaddress
+import logging
 import secrets
 import socket
 import time
@@ -19,6 +20,25 @@ import config
 from platforms import PLATFORMS
 from platforms.base import MusicPlatform
 import anti_devtools
+import listen_together
+
+logger = logging.getLogger(__name__)
+
+
+def _configure_logging() -> None:
+    """按 config.DEBUG 配置应用日志级别：开启时输出 DEBUG+ 调试日志（进房/动作/缓存/门禁等），
+    关闭时仅 WARNING+（重要异常）。幂等，可重复调用（命令行 --debug 覆盖后需再调一次生效）。"""
+    level = logging.DEBUG if config.DEBUG else logging.WARNING
+    for name in {__name__, "listen_together", "anti_devtools"}:
+        lg = logging.getLogger(name)
+        lg.setLevel(level)
+        if not lg.handlers:  # uvicorn 不接管应用 logger，显式挂 stderr
+            _h = logging.StreamHandler()
+            _h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%H:%M:%S"))
+            lg.addHandler(_h)
+
+
+_configure_logging()  # 立即生效（uvicorn main:app 导入方式；--debug 覆盖后由 __main__ 再调）
 
 # 生产环境禁用 Swagger/OpenAPI 文档，避免暴露 API 结构与端点清单
 app = FastAPI(
@@ -54,11 +74,16 @@ def _sweep_rate_keys(now: float) -> None:
             _RATE_LAST.pop(k, None)
 
 
-def _check_rate(request: Request, max_req: int = config.RATE_MAX, window: int = config.RATE_WINDOW, bucket: str = "default") -> bool:
+def _check_rate(request: Request, max_req: int | None = None, window: int | None = None, bucket: str = "default") -> bool:
     """检查 IP 速率，未超限返回 True，超限返回 False。不同 bucket 独立计数。
 
     纯同步执行（事件循环内无 await 点），单 worker 下天然原子；
-    setdefault 初始化防御未来迁移线程池/异步执行时出现竞态。"""
+    setdefault 初始化防御未来迁移线程池/异步执行时出现竞态。
+    max_req/window 默认取 config 当前值（运行时读取，支持命令行覆盖）。"""
+    if max_req is None:
+        max_req = config.RATE_MAX
+    if window is None:
+        window = config.RATE_WINDOW
     global _RATE_CALLS
     ip = request.client.host if request.client else "unknown"
     key = f"{ip}|{bucket}"
@@ -112,6 +137,8 @@ async def _security_headers(request: Request, call_next):
         # token 校验通过后仍按 IP 限速：杜绝脚本持有有效 token 无限量调用 API
         # 流式端点（视频/音频代理、下载）放宽，避免误伤正常播放
         if not _check_rate(request, max_req=config.STREAM_RATE_MAX if stream else config.API_RATE_MAX, bucket="api" if not stream else "stream"):
+            _client_ip = request.client.host if request.client else "?"
+            logger.warning("限速触发：IP=%s %s %s", _client_ip, request.method, path)
             return JSONResponse({"detail": "请求过于频繁，请稍后再试"}, status_code=429)
 
     response = await call_next(request)
@@ -129,6 +156,9 @@ async def _security_headers(request: Request, call_next):
 
 app.mount("/static", StaticFiles(directory=os.path.join(config.BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(config.BASE_DIR, "templates"))
+
+# 一起听歌：10 个常驻房间 + HTTP 长轮询实时同步（API 均走门禁中间件）
+app.include_router(listen_together.router)
 
 # ── 反 F12 脚本路由（固定路径，真实页面使用）──
 @app.get(anti_devtools.get_route_path(), response_class=Response)
@@ -385,6 +415,19 @@ async def login_page(request: Request):
     })
 
 
+@app.get("/listen-together", response_class=HTMLResponse)
+async def listen_together_page(request: Request):
+    # 浏览器门禁：无有效 token 则返回挑战页（一起听歌接口同样受门禁保护）
+    if not anti_devtools.validate_gate_token(request):
+        return anti_devtools.challenge_response(
+            anti_f12_enabled=not _is_authed(request), request=request
+        )
+    return templates.TemplateResponse("listen_together.html", {
+        "request": request,
+        "anti_devtools_script_url": anti_devtools.get_script_url(),
+    })
+
+
 @app.get("/api/login/qrcode/{platform}")
 async def get_qr_code(platform: str, request: Request):
     _require_auth(request)
@@ -473,6 +516,7 @@ async def search(
         all_songs.extend(songs)
         total += count
 
+    logger.info("搜索：%s（%s），命中 %s 首，失败平台 %s", keyword, ",".join(targets), total, errors or "无")
     return {
         "songs": [asdict(s) for s in all_songs],
         "total": total,
@@ -484,6 +528,7 @@ async def search(
 @app.get("/api/play/{platform}/{song_id}")
 async def get_play_url(platform: str, song_id: str, request: Request):
     extra_str = request.query_params.get("extra", "")
+    room_id = int(request.query_params.get("room_id", "0") or "0")  # 一起听歌房间缓存（0=不走缓存）
     import json as _json
 
     extra = {}
@@ -492,6 +537,14 @@ async def get_play_url(platform: str, song_id: str, request: Request):
             extra = _json.loads(extra_str)
         except Exception:
             pass
+
+    # 一起听歌：同房间多人听同一首歌复用播放地址（缓存命中免请求平台 API）
+    if room_id > 0:
+        cached = listen_together.cached_play_url(room_id, platform, song_id, extra)
+        if cached:
+            logger.info("房间 %s 播放缓存命中，免请求平台：%s/%s", room_id, platform, song_id)
+            return cached
+        logger.info("房间 %s 播放缓存未命中，请求平台：%s/%s", room_id, platform, song_id)
 
     from platforms.base import Song
 
@@ -512,7 +565,11 @@ async def get_play_url(platform: str, song_id: str, request: Request):
         url = await p.get_play_url(song)
     if not url:
         raise HTTPException(404, "无法获取播放地址")
-    return {"url": url, "video": is_bilibili and config.VIDEO_PLAYBACK_ENABLED}
+    result = {"url": url, "video": is_bilibili and config.VIDEO_PLAYBACK_ENABLED}
+    if room_id > 0:
+        listen_together.cache_play_url(room_id, platform, song_id, extra, url, result["video"])
+        logger.info("房间 %s 播放缓存已写入：%s/%s", room_id, platform, song_id)
+    return result
 
 
 @app.get("/api/lyrics/{platform}/{song_id}")
@@ -546,6 +603,7 @@ async def get_lyrics(platform: str, song_id: str, request: Request):
         lrc = await p.get_lyrics(song)
     except Exception:
         lrc = ""
+    logger.info("歌词：%s/%s（%s）", platform, song_id, "有" if lrc else "无")
     return {"lyrics": lrc}
 
 
@@ -579,6 +637,7 @@ async def download_song(platform: str, song_id: str, request: Request):
         url = await p.get_download_url(song, quality=quality)
     if not url:
         raise HTTPException(404, "无法获取下载地址")
+    logger.info("下载：%s - %s（%s/%s，%s）", artist, name, platform, song_id, quality)
 
     # ── HEAD 请求：仅获取响应头，不下载数据体 ──
     if request.method == "HEAD":
@@ -740,6 +799,7 @@ async def resolve_song(platform: str, song_id: str):
     song = await p.get_song_detail(song_id)
     if song is None:
         raise HTTPException(404, "无法获取歌曲信息")
+    logger.info("歌曲详情：%s/%s（%s - %s）", platform, song_id, song.artist, song.name)
     return asdict(song)
 
 
@@ -830,6 +890,7 @@ async def proxy_audio(request: Request, url: str = Query(...)):
         raise HTTPException(400, "代理目标不合法")
     range_header = request.headers.get("range")
     domain = urlparse(url).hostname or ""
+    logger.debug("代理流：%s%s（range=%s）", domain, urlparse(url).path[:60], range_header or "-")
     # 防盗链头（域名已通过白名单校验）
     referer = ""
     for suffix, ref in config.PROXY_REFERER_MAP:
@@ -930,14 +991,18 @@ if __name__ == "__main__":
     import uvicorn
 
     args = config.parse_args()
+    _configure_logging()  # --debug 可能覆盖了 DEBUG：按最终值重配日志级别
+
+    # 一起听歌房间数可能被命令行参数覆盖：按最终值重建常驻房间（启动前房间为空，无状态损失）
+    listen_together.reinit_rooms()
 
     # 部署自检（防运维配置陷阱）
     # 1) 反代模式：forwarded_allow_ips 未改则所有客户端共享代理 IP（限速变全局限流、
     #    token 的 IP 指纹绑定失效）。默认值 127.0.0.1 仅对"Nginx 与后端同机"正确。
     if args.https and config.FORWARDED_ALLOW_IPS == "127.0.0.1":
-        print("[警告] 反代模式(https=true)下 forwarded_allow_ips 仍为默认 127.0.0.1："
-              "仅当 Nginx 与后端同机时正确；若不在同一台机器，请将 config.ini 的 "
-              "forwarded_allow_ips 改为 Nginx 服务器实际 IP，否则所有客户端将共享同一 IP。")
+        print("[警告] 反代模式(https=true)下 FORWARDED_ALLOW_IPS 仍为默认 127.0.0.1："
+              "仅当 Nginx 与后端同机时正确；若不在同一台机器，请将 config.py 的 "
+              "FORWARDED_ALLOW_IPS 改为 Nginx 服务器实际 IP，否则所有客户端将共享同一 IP。")
     # 2) 本程序为单进程设计（限速/token 均为内存态）：请勿用 `uvicorn main:app --workers N`
     #    多进程部署，否则限速阈值按 Worker 数放大、门禁 token 不共享，安全防线失效。
     if os.environ.get("MUSICCATCH_WORKERS"):
@@ -955,7 +1020,7 @@ if __name__ == "__main__":
         # 反向代理终止 TLS：信任代理的 X-Forwarded-Proto/For 头，
         # 让 FastAPI 正确识别外部 https 协议和客户端真实 IP
         uvicorn_kwargs["proxy_headers"] = True
-        # 可信代理 IP 白名单（config.ini forwarded_allow_ips）：
+        # 可信代理 IP 白名单（config.py FORWARDED_ALLOW_IPS）：
         # 防止攻击者直连后端伪造 X-Forwarded-For 绕过限速与 token 指纹绑定
         uvicorn_kwargs["forwarded_allow_ips"] = config.FORWARDED_ALLOW_IPS
     if args.ssl:

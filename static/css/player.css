@@ -37,6 +37,9 @@
     cursor: pointer;
     font-size: 16px;
     z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .speed-indicator {
@@ -253,6 +256,9 @@
     flex-shrink: 0;
     padding: 4px 8px;
     transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .player-fav-btn:hover { color: var(--text-primary); }
 .player-fav-btn.active { color: #ef4444; }
