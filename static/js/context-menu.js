@@ -34,7 +34,11 @@
         menu.style.left = x + 'px';
         menu.style.top = y + 'px';
         const sub = document.getElementById('ctxDownloadSub');
-        if (x + menu.offsetWidth + 160 > vw) sub.classList.add('flip-left');
+        const plSub = document.getElementById('ctxMyPlaylistSub');
+        if (x + menu.offsetWidth + 160 > vw) {
+            sub.classList.add('flip-left');
+            plSub.classList.add('flip-left');
+        }
     }
 
     function _populateCtxMenu() {
@@ -73,6 +77,14 @@
         const dlParent = document.getElementById('ctxDownloadItem');
         dlParent.classList.remove('sub-open');
         sub.classList.remove('flip-left');
+
+        // 填充“添加到歌单”子菜单（本地歌单列表）
+        const plSub = document.getElementById('ctxMyPlaylistSub');
+        const pls = getMyPlaylists();
+        plSub.innerHTML = pls.length
+            ? pls.map(p => `<div class="ctx-item" onclick="event.stopPropagation();ctxAddToMyPlaylist('${p.id}')">${escHtml(p.name)} (${p.songs.length})</div>`).join('')
+            : '<div class="ctx-item ctx-item-disabled">暂无歌单，请先新建/导入</div>';
+        document.getElementById('ctxMyPlaylistItem').classList.remove('sub-open');
     }
 
     function showCtxMenuFrom(event, source, index) {
@@ -95,13 +107,18 @@
         menu.style.top = y + 'px';
 
         const sub = document.getElementById('ctxDownloadSub');
-        if (x + mw + 160 > vw) sub.classList.add('flip-left');
+        const plSub = document.getElementById('ctxMyPlaylistSub');
+        if (x + mw + 160 > vw) {
+            sub.classList.add('flip-left');
+            plSub.classList.add('flip-left');
+        }
     }
 
     function hideContextMenu() {
         const menu = document.getElementById('ctxMenu');
         menu.style.display = 'none';
         document.getElementById('ctxDownloadItem').classList.remove('sub-open');
+        document.getElementById('ctxMyPlaylistItem').classList.remove('sub-open');
     }
 
     document.addEventListener('click', (e) => {
@@ -118,8 +135,18 @@
         this.classList.toggle('sub-open');
     });
 
+    document.getElementById('ctxMyPlaylistItem').addEventListener('click', function(e) {
+        e.stopPropagation();
+        this.classList.toggle('sub-open');
+    });
+
     function ctxPlay() { hideContextMenu(); if (_ctxSong) { const idx = currentSongs.indexOf(_ctxSong); if (idx >= 0) playSong(idx); else { currentSongs = [_ctxSong, ...currentSongs]; playSong(0); } } }
     function ctxAddToPlaylist() { hideContextMenu(); if (_ctxSong) { playlist.push(_ctxSong); savePlaylist(); renderPlaylist(); } }
+    function ctxAddToMyPlaylist(plId) {
+        hideContextMenu();
+        if (!_ctxSong) return;
+        addSongToMyPlaylistById(plId, _ctxSong);
+    }
     function ctxToggleFav() {
         hideContextMenu();
         if (!_ctxSong) return;

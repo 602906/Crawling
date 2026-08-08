@@ -31,6 +31,12 @@
 - 右键菜单：播放、加入列表、收藏、下载、歌曲信息、分享（支持"从当前播放位置分享"，带时间戳跳转）
 - 倍速播放、音量/静音、播放进度记忆
 
+### 我的歌单
+- **左侧歌单栏**：歌单保存在浏览器本地（localStorage），不占用服务器存储
+- **平台导入**：导入网易云音乐 / 酷狗音乐歌单（粘贴链接或 ID，预览确认后自动分页拉取全量）
+- **新建 / 添加**：一键新建空歌单；右键任意歌曲 → "添加到歌单"（自动去重）
+- **分享**：生成仅含平台代码与歌曲 ID 的极短链接，按平台分组（`?list=kugou:hash1,hash2;netease:123,456`），不限歌曲数量；对方打开链接自动批量解析并保存为"分享歌单"
+
 ### 一起听歌
 - **10 个常驻房间**：多人实时同步播放同一首歌；传输层可配置：默认 HTTP 长轮询（兼容不支持 WebSocket 的 CDN 与 Nginx 默认配置），可切换 WebSocket 低延迟推送（config.py 中 `LT_TRANSPORT` 改为 `"ws"`，全局统一）；**WS 模式列表页即建立全局连接**，房间列表实时推送（人数/当前播放即时刷新，替代列表轮询），进房/离开/操作全部走 WS 消息，刷新页面自动重连恢复
 - **房主权威播放**：房主本地播放即为权威（不校验/校准进度），全员自动对齐；进度同步按需进行——新成员进房时服务端询问房主当前进度（`ask_sync` 询问-应答，替代房主周期上报），暂停/切歌/拖动仅房主可操作，非房主播放按钮为本地控制
@@ -109,11 +115,11 @@ MusicCatch/
 │   └── verify.html          # 访问密码验证页
 ├── static/
 │   ├── css/                 # 样式（base / player / search / lyrics / playlist /
-│   │                        #  favorites / context-menu / login / pip / responsive /
-│   │                        #  listen-together）
+│   │                        #  favorites / context-menu / playlists / login / pip /
+│   │                        #  responsive / listen-together）
 │   └── js/                  # 前端逻辑（app / player / search / lyrics / playlist /
-│                            #  favorites / context-menu / login / pip / verify /
-│                            #  listen-together）
+│                            #  favorites / context-menu / playlists / login / pip /
+│                            #  verify / listen-together）
 └── .sessions/               # 平台登录会话（运行时自动生成）
 ```
 
@@ -226,7 +232,8 @@ debug = true                 # 调试日志（bool 支持 true/false/yes/no/on/o
 4. **下载**：右键歌曲 → 下载 → 选择音质；或打开"歌曲信息"查看可用音质。
 5. **歌词**：播放时右侧滑出歌词面板，可复制或下载 LRC；设置中可开启歌词悬浮窗（画中画）。
 6. **收藏/列表**：播放条按钮或右键菜单管理。
-7. **一起听歌**：进入"一起听歌"页 → 首次设置昵称（保存在本机浏览器）→ 加入任意房间；房主负责播放控制，其余成员自动跟随；重名进入会被拦截并提示。
+7. **歌单**：主页左侧"我的歌单"栏：＋ 新建空歌单，⇩ 导入平台歌单（粘贴链接或 ID，预览确认后全量导入）；右键任意歌曲 → "添加到歌单"；打开歌单后支持"播放全部"或逐曲播放；"分享"复制极短链接（仅平台与 ID），对方打开自动解析并保存为"分享歌单"。
+8. **一起听歌**：进入"一起听歌"页 → 首次设置昵称（保存在本机浏览器）→ 加入任意房间；房主负责播放控制，其余成员自动跟随；重名进入会被拦截并提示。
 
 ---
 
@@ -245,6 +252,8 @@ debug = true                 # 调试日志（bool 支持 true/false/yes/no/on/o
 | POST | `/api/login/phone/{platform}/send_code` | 发送短信验证码 |
 | GET | `/api/search` | 聚合搜索（`keyword` / `platform` / `page` / `page_size`） |
 | GET | `/api/play/{platform}/{song_id}` | 获取播放地址 |
+| GET | `/api/playlist/import` | 导入平台歌单单页（`platform` / `ref` / `page` / `page_size`；网易云/酷狗，酷狗含设备注册） |
+| POST | `/api/resolve-songs` | 批量解析分享歌单歌曲（body: `{"songs":[{"platform","id"}]}`，并发 8，失败保留最小信息供播放兜底） |
 | GET | `/api/lyrics/{platform}/{song_id}` | 获取 LRC 歌词 |
 | GET/HEAD | `/api/download/{platform}/{song_id}` | 下载（`quality`: 128/320/lossless；B 站: video/audio） |
 | GET | `/api/resolve-song/{platform}/{song_id}` | 歌曲完整元数据 |

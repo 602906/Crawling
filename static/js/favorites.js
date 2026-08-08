@@ -46,6 +46,7 @@ let _showingFavorites = false;
 
     function showFavorites() {
         _showingFavorites = true;
+        hideMyPlaylistView();
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('[data-filter="favorites"]').classList.add('active');
         document.getElementById('emptyState').style.display = 'none';

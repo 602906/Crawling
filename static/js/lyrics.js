@@ -181,10 +181,19 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         lyricsVisible = !lyricsVisible;
         if (lyricsVisible) {
             panel.classList.remove('hidden');
-            tab.innerHTML = '&#8250;';
+            tab.classList.remove('collapsed');
+            tab.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>';
+            // 移动端互斥：展开歌词时收起歌单侧栏（两个全宽面板不能同时显示，避免互相盖住）
+            if (window.innerWidth <= 640 && typeof togglePlaylistSidebar === 'function') {
+                const ps = document.getElementById('playlistSidebar');
+                if (ps && !ps.classList.contains('hidden')) {
+                    togglePlaylistSidebar();
+                }
+            }
         } else {
             panel.classList.add('hidden');
-            tab.innerHTML = '&#8249;';
+            tab.classList.add('collapsed');
+            tab.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
         }
     }
 

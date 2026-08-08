@@ -128,10 +128,12 @@ async def _security_headers(request: Request, call_next):
     # 仅精确豁免 gate 注册/心跳两个端点，其余 /api/gate/* 一律走校验
     path = request.url.path
     if path.startswith("/api/") and path not in ("/api/gate/register", "/api/gate/heartbeat"):
-        # 流式端点（代理/下载）放宽指纹校验：移动端下载由浏览器下载管理器
+        # 流式端点（代理/下载/SSE 分批解析）放宽指纹校验：移动端下载由浏览器下载管理器
         # 二次发起，请求头（UA/语言/客户端提示）与页面不同，严格指纹会误杀；
+        # 宽松校验不覆盖 token 绑定指纹，避免长连接期间污染心跳校验；
         # 仍强制 IP 匹配，且这些端点另有 IP 限速兜底
-        stream = path.startswith("/api/proxy") or path.startswith("/api/download")
+        stream = (path.startswith("/api/proxy") or path.startswith("/api/download")
+                  or path == "/api/resolve-songs-stream")
         if not anti_devtools.validate_gate_token(request, strict_fp=not stream):
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
         # token 校验通过后仍按 IP 限速：杜绝脚本持有有效 token 无限量调用 API
@@ -801,6 +803,128 @@ async def resolve_song(platform: str, song_id: str):
         raise HTTPException(404, "无法获取歌曲信息")
     logger.info("歌曲详情：%s/%s（%s - %s）", platform, song_id, song.artist, song.name)
     return asdict(song)
+
+
+@app.get("/api/playlist/import")
+async def playlist_import(
+    request: Request,
+    platform: str = Query(...),
+    ref: str = Query(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, ge=1, le=200),
+):
+    """导入平台歌单单页（网易云/酷狗），返回 {name, cover, creator, total, songs}"""
+    if not _check_rate(request, max_req=20, window=60, bucket="playlist_import"):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    p = _get_platform(platform)
+    import_playlist = getattr(p, "import_playlist", None)
+    if import_playlist is None:
+        raise HTTPException(400, f"平台 {platform} 不支持歌单导入")
+    try:
+        result = await import_playlist(ref, page, page_size)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.warning("歌单导入失败：%s/%s（%s）", platform, ref, e)
+        raise HTTPException(502, f"歌单导入失败：{e}")
+    result["songs"] = [asdict(s) for s in result["songs"]]
+    logger.info("歌单导入：%s/%s 第 %s 页，共 %s 首，返回 %s 首",
+                platform, ref, page, result["total"], len(result["songs"]))
+    return result
+
+
+@app.post("/api/resolve-songs")
+async def resolve_songs(request: Request):
+    """批量解析分享链接中的歌曲（并发 8），失败保留最小 Song 供播放兜底"""
+    from platforms.base import Song
+
+    if not _check_rate(request, max_req=30, window=60, bucket="resolve_songs"):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "无效的 JSON 请求体")
+    items = payload.get("songs") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not items:
+        raise HTTPException(400, "songs 列表不能为空")
+    if len(items) > 1000:
+        raise HTTPException(400, "songs 数量过多（最多 1000 首）")
+
+    sem = asyncio.Semaphore(8)
+
+    async def _resolve_one(item):
+        platform = str(item.get("platform", "")).strip().lower()
+        song_id = str(item.get("id", "")).strip()
+        fallback = Song(id=song_id, name="", artist="", platform=platform)
+        if not platform or not song_id:
+            return fallback
+        async with sem:
+            try:
+                p = _get_platform(platform)
+                song = await p.get_song_detail(song_id)
+                return song if song is not None else fallback
+            except Exception as e:
+                logger.warning("批量解析失败：%s/%s（%s）", platform, song_id, e)
+                return fallback
+
+    songs = await asyncio.gather(*[_resolve_one(item) for item in items])
+    logger.info("批量解析歌曲：%s 首（含兜底）", len(songs))
+    return {"songs": [asdict(s) for s in songs]}
+
+
+@app.post("/api/resolve-songs-stream")
+async def resolve_songs_stream(request: Request):
+    """分享歌单分批解析（SSE 流式）：按 config.PLAYLIST_ENRICH_BATCH 每批并发解析
+    并立即推送该批结果，客户端边收边写回，避免长歌单一次性等待"""
+    import json
+
+    from platforms.base import Song
+
+    if not _check_rate(request, max_req=10, window=60, bucket="resolve_stream"):
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "无效的 JSON 请求体")
+    items = payload.get("songs") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not items:
+        raise HTTPException(400, "songs 列表不能为空")
+    if len(items) > 1000:
+        raise HTTPException(400, "songs 数量过多（最多 1000 首）")
+
+    batch_size = max(1, config.PLAYLIST_ENRICH_BATCH)
+    sem = asyncio.Semaphore(8)
+
+    async def _resolve_one(item):
+        platform = str(item.get("platform", "")).strip().lower()
+        song_id = str(item.get("id", "")).strip()
+        fallback = Song(id=song_id, name="", artist="", platform=platform)
+        if not platform or not song_id:
+            return fallback
+        async with sem:
+            try:
+                p = _get_platform(platform)
+                song = await p.get_song_detail(song_id)
+                return song if song is not None else fallback
+            except Exception as e:
+                logger.warning("流式解析失败：%s/%s（%s）", platform, song_id, e)
+                return fallback
+
+    async def _stream():
+        total = len(items)
+        for start in range(0, total, batch_size):
+            batch = items[start:start + batch_size]
+            songs = await asyncio.gather(*[_resolve_one(it) for it in batch])
+            payload_out = json.dumps({"songs": [asdict(s) for s in songs]}, ensure_ascii=False)
+            yield f"data: {payload_out}\n\n"
+            logger.info("流式解析批次：%s/%s（本批 %s 首）", min(start + batch_size, total), total, len(songs))
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/info/{platform}/{song_id}")

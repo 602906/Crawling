@@ -83,8 +83,10 @@ AUTH_COOKIE_MAX_AGE = 7 * 86400  # 7 天
 FROZEN_BROWSER_OPEN_DELAY = 1.5  # 启动后延迟打开浏览器（秒）
 
 # ── 浏览器门禁 Token ──
-GATE_TOKEN_TTL = 15                # 验证通过后有效时长（秒）；滑动续期：每次请求/心跳都会重置
-GATE_PENDING_TTL = 3               # 注册后待验证时长（秒）
+GATE_TOKEN_TTL = 60                # 验证通过后有效时长（秒）；滑动续期：每次请求/心跳都会重置。
+                                   # 60s：心跳间隔 10s，SSE 流/音频代理等长连接占用浏览器连接池时，
+                                   # 心跳请求可能排队延迟数秒~数十秒，余量不足会导致心跳失败误刷新
+GATE_PENDING_TTL = 3               # 注册后待验证时长（秒）；register 已直接发完整 TTL，此参数保留兼容
 GATE_SCRIPT_TTL = 3                # 挑战页脚本 token 有效期（秒）
 GATE_COOKIE_NAME = "mc_gate"       # 门禁 Cookie 名称
 GATE_COOKIE_MAX_AGE = 86400        # 门禁 Cookie 有效期（秒）
@@ -116,8 +118,8 @@ PROXY_CHUNK_SIZE = 65536        # 代理流式传输块大小（字节）
 # ── 一起听歌 ──（改配置直接改这里，不修改即默认值）
 LT_TRANSPORT = "http"              # 传输方式："http"（长轮询，兼容不支持 WebSocket 的 CDN）或 "ws"（低延迟推送），全局统一
 LT_WS_URL = ""                     # WebSocket 连接地址覆盖（默认空=从当前域名连接）：
-                                   # 配置为完整 WS 地址（如 wss://ws.example.com/api/listen-together/ws）
-                                   # 时，前端 WS 改从该地址连接（WS 与 HTTP 走不同入口/CDN 的场景）
+                                    # 配置为完整 WS 地址（如 wss://ws.example.com/api/listen-together/ws）
+                                    # 时，前端 WS 改从该地址连接（WS 与 HTTP 走不同入口/CDN 的场景）
 LT_ROOM_COUNT = 10                 # 常驻房间数（房间始终存在，空房恢复默认名"x号房"）
 LT_QUEUE_MAX = 100                 # 单房间播放队列上限（防内存滥用）
 LT_NAME_MAX_LEN = 20               # 用户名 / 自定义房间名最大长度（前端提示/输入框上限统一跟随此值）
@@ -130,6 +132,11 @@ LT_MEMBER_TTL = 90                 # 成员离线判定（秒）：停止轮询�
 LT_CACHE_MARGIN = 300              # 房间播放缓存余量（秒）：同房间多人听同一首歌复用播放地址；
                                    # 播放中每次状态变更续期，切歌/停止后超过此时长自动删除（默认 5 分钟）
 LT_ACTION_RATE_MAX = 60            # 已废弃（动作已无限速，保留仅为兼容）
+
+
+# ── 歌单 ──（改配置直接改这里，不修改即默认值）
+PLAYLIST_ENRICH_BATCH = 5          # 分享链接导入歌单：每批解析并传回客户端的歌曲数（默认 5）
+                                   # 每批并发解析 8 首；批越小前端渐进刷新越平滑，越大整体越快
 
 
 # 请求体（JSON 等）大小上限：防超大包内存耗尽（DoS），超过直接 413
@@ -199,7 +206,7 @@ _ARG_SPECS = (
     ("frozen-browser-open-delay", "FROZEN_BROWSER_OPEN_DELAY", float, f"打包启动后延迟打开浏览器（秒）(默认: {FROZEN_BROWSER_OPEN_DELAY})"),
     # ── 浏览器门禁 Token ──
     ("gate-token-ttl", "GATE_TOKEN_TTL", int, f"门禁验证通过后有效时长（秒），滑动续期 (默认: {GATE_TOKEN_TTL})"),
-    ("gate-pending-ttl", "GATE_PENDING_TTL", int, f"门禁注册后待验证时长（秒）(默认: {GATE_PENDING_TTL})"),
+    ("gate-pending-ttl", "GATE_PENDING_TTL", int, f"门禁注册后待验证时长（秒，保留兼容）(默认: {GATE_PENDING_TTL})"),
     ("gate-script-ttl", "GATE_SCRIPT_TTL", int, f"挑战页脚本 token 有效期（秒）(默认: {GATE_SCRIPT_TTL})"),
     ("gate-cookie-name", "GATE_COOKIE_NAME", str, f"门禁 Cookie 名称 (默认: {GATE_COOKIE_NAME})"),
     ("gate-cookie-max-age", "GATE_COOKIE_MAX_AGE", int, f"门禁 Cookie 有效期（秒）(默认: {GATE_COOKIE_MAX_AGE})"),
@@ -234,6 +241,8 @@ _ARG_SPECS = (
     ("lt-poll-timeout", "LT_POLL_TIMEOUT", int, f"长轮询最长挂起（秒）(默认: {LT_POLL_TIMEOUT})"),
     ("lt-member-ttl", "LT_MEMBER_TTL", int, f"成员离线判定（秒）(默认: {LT_MEMBER_TTL})"),
     ("lt-cache-margin", "LT_CACHE_MARGIN", int, f"房间播放缓存余量（秒），切歌/停止后自动删除 (默认: {LT_CACHE_MARGIN})"),
+    # ── 歌单 ──
+    ("playlist-enrich-batch", "PLAYLIST_ENRICH_BATCH", int, f"分享链接导入歌单：每批解析并传回客户端的歌曲数 (默认: {PLAYLIST_ENRICH_BATCH})"),
     # ── 请求体 ──
     ("max-body-size", "MAX_BODY_SIZE", int, f"请求体（JSON 等）大小上限（字节）(默认: {MAX_BODY_SIZE})"),
 )

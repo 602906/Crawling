@@ -79,7 +79,9 @@
         transform: none;
         right: -100%;
     }
-    .lyrics-panel.hidden .lyrics-tab {
+    /* 歌词开关按钮：固定右下角，展开/收起位置不变（与左侧歌单按钮不重叠，任何面板盖不住） */
+    .lyrics-tab.collapsed,
+    .lyrics-tab {
         position: fixed;
         right: 12px;
         bottom: 84px;
@@ -91,18 +93,7 @@
         width: 48px;
         height: 48px;
         box-shadow: 0 2px 10px var(--shadow);
-    }
-    .lyrics-panel:not(.hidden) .lyrics-tab {
-        position: absolute;
-        left: auto;
-        right: 8px;
-        bottom: 8px;
-        top: auto;
-        transform: none;
-        border: 1px solid var(--border);
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
+        z-index: 160;
     }
     .lyrics-close {
         display: block !important;

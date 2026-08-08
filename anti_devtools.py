@@ -236,11 +236,11 @@ def _client_fingerprint(request: Request) -> tuple[str, str]:
 
 
 def register_gate_token(request: Request) -> tuple[str, str]:
-    """生成新 token + 动态 cookie 名，绑定 IP/浏览器指纹，3 秒内必须被 verify 验证。"""
+    """生成新 token + 动态 cookie 名，绑定 IP/浏览器指纹，直接发完整 TTL（心跳/请求滑动续期）。"""
     _gc_tokens()
     token = secrets.token_hex(24)
     ip, fp = _client_fingerprint(request)
-    _tokens[token] = (time.time() + config.GATE_PENDING_TTL, ip, fp)
+    _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, ip, fp)
     logger.info("门禁注册：IP=%s", ip)
     return token, _gen_cookie_name(config.GATE_COOKIE_NAME)
 
@@ -608,6 +608,7 @@ if(Date.now()-@DTS@>@DEBUG_DELAY@){@SHARED@.kill("dbg");return;}
 var @THR@=@THRESHOLD@,@IVL@=@INTERVAL@,@DVI@=@DEBUG_INTERVAL@,@RTM@=0;
 function @DET@(){try{
 if(document.hidden||document.visibilityState!=="visible")return !1;
+if(@MOB@)return !1;
 var @VW@=window.visualViewport;
 if(@VW@&&@VW@["@MSSCALE@"]!==1)return !1;
 var w=Math.abs(window.outerWidth-window.innerWidth)>@THR@;
@@ -646,6 +647,10 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
         "@RC@": _rand_name(), "@INI@": _rand_name(), "@VW@": _rand_name(),
         "@RND@": str(random.randint(800, 1200)),
         "@MSSCALE@": _ms("scale"),
+        # 移动端豁免尺寸检测：手机浏览器视口动态变化（iOS 工具栏收缩、安卓键盘/地址栏），
+        # outer-inner 差值可达数百 px，与桌面 DevTools 特征无法区分，必误杀；
+        # F12 键/debugger/右键检测对移动端无意义，一并保留但不参与尺寸判断
+        "@MOB@": "(/Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&window.innerWidth<=1024))",
         "@DEBUG_DELAY@": str(config.AF12_DEBUG_DELAY_THRESHOLD),
         "@THRESHOLD@": str(threshold_val),
         "@INTERVAL@": str(interval_val),
@@ -666,7 +671,8 @@ def _build_segment2(shared_name: str, need_register: bool) -> str:
     hb = _rand_name()
     recover = _rand_name()
     recovering = _rand_name()
-    T = """var @RECOVERING@=!1;
+    fails = _rand_name()
+    T = """var @RECOVERING@=!1,@FAILS@=0;
 function @RECOVER@(){if(@RECOVERING@)return;@RECOVERING@=!0;
 fetch('/api/gate/register',{credentials:'same-origin'}).then(function(r){
 if(r.status===429){setTimeout(function(){@RECOVERING@=!1;@RECOVER@();},5000);return null;}
@@ -677,10 +683,14 @@ if(!d){@RECOVERING@=!1;return;}
 setTimeout(function(){location.reload();},@RELOAD_DELAY@);
 }).catch(function(){@RECOVERING@=!1;setTimeout(function(){@RECOVER@();},5000);});}
 function @HB@(){fetch('/api/gate/heartbeat',{method:'POST',credentials:'same-origin'}).then(function(r){
-if(r.ok)return r.json().then(function(d){if(d.ok===!1){@RECOVER@();}});
+if(r.ok)return r.json().then(function(d){
+if(d.ok===!1){@FAILS@=@FAILS@+1;if(@FAILS@>=2){@FAILS@=0;@RECOVER@();}}
+else{@FAILS@=0;}
+});
 }).catch(function(){
 setTimeout(function(){fetch('/api/gate/heartbeat',{method:'POST',credentials:'same-origin'}).catch(function(){});},2000);
 });}
+@HB@();
 setInterval(@HB@,@HB_INTERVAL@);
 document.addEventListener('visibilitychange',function(){if(!document.hidden){@HB@();}});
 @REGISTER@"""
@@ -697,7 +707,7 @@ return r.json();
         reg = ""
     subs = {
         "@SHARED@": shared_name,
-        "@HB@": hb, "@RECOVER@": recover, "@RECOVERING@": recovering,
+        "@HB@": hb, "@RECOVER@": recover, "@RECOVERING@": recovering, "@FAILS@": fails,
         "@HB_INTERVAL@": str(config.GATE_HEARTBEAT_INTERVAL),
         "@RELOAD_DELAY@": str(config.GATE_RELOAD_DELAY),
         "@RELOAD_TIMEOUT@": str(config.GATE_RELOAD_TIMEOUT),

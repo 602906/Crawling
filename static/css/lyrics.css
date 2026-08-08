@@ -17,10 +17,11 @@
     transform: translateX(100%);
 }
 
+/* 开关 tab：独立于面板的 fixed 按钮（面板左缘外；展开/收起位置不变，任何面板盖不住） */
 .lyrics-tab {
-    position: absolute;
-    left: -28px;
-    top: 50%;
+    position: fixed;
+    right: 380px;
+    top: calc(50vh - 8px);
     transform: translateY(-50%);
     width: 28px;
     height: 56px;
@@ -36,10 +37,23 @@
     font-size: 18px;
     transition: all 0.2s;
     user-select: none;
+    z-index: 160;
 }
 .lyrics-tab:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+}
+/* 图标与歌单按钮同规格（1em 跟随按钮字号） */
+.lyrics-tab svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    display: inline-block;
+    vertical-align: middle;
+}
+/* 面板收起时：按钮贴屏幕右缘 */
+.lyrics-tab.collapsed {
+    right: 0;
 }
 
 .lyrics-header {

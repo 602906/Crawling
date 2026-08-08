@@ -68,11 +68,6 @@ def _signature_web(params: dict) -> str:
     return _md5(f"{s}{body}{s}")
 
 
-def _signature_register(params: dict) -> str:
-    body = "".join(str(params[k]) for k in sorted(params.keys()))
-    return _md5(f"1014{body}1014")
-
-
 def _sign_key(hash_val: str, mid: str, userid, appid=None) -> str:
     appid = appid or LITE_APPID
     return _md5(f"{hash_val}{LITE_SIGNKEY_SECRET}{appid}{mid}{userid or 0}")
@@ -121,6 +116,49 @@ def _rsa_encrypt_lite(data) -> str:
     m = int.from_bytes(padded, "big")
     c = pow(m, pub_key.e, pub_key.n)
     return format(c, "x").zfill(256)
+
+
+def _playlist_aes_encrypt(data) -> dict:
+    """酷狗 v2 注册加密（参照 KuGouMusicApi playlistAesEncrypt）：
+    key=随机 6 位小写，aes_key=md5(key)[:16]，iv=md5(key)[16:32]，CBC/PKCS7 → base64"""
+    from Crypto.Cipher import AES
+    if isinstance(data, dict):
+        data = json.dumps(data)
+    key = "".join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(6))
+    digest = _md5(key)
+    aes_key = digest[:16].encode()
+    iv = digest[16:32].encode()
+    pad = 16 - len(data) % 16
+    data += chr(pad) * pad
+    cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+    return {"key": key, "str": base64.b64encode(cipher.encrypt(data.encode())).decode()}
+
+
+def _playlist_aes_decrypt(str_b64: str, key: str):
+    from Crypto.Cipher import AES
+    digest = _md5(key)
+    aes_key = digest[:16].encode()
+    iv = digest[16:32].encode()
+    cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+    decrypted = cipher.decrypt(base64.b64decode(str_b64))
+    pad_len = decrypted[-1]
+    decrypted = decrypted[:-pad_len]
+    try:
+        return json.loads(decrypted.decode())
+    except Exception:
+        return decrypted.decode()
+
+
+def _rsa_encrypt2(data) -> str:
+    """RSAES-PKCS1-V1_5 加密 → hex（v2 注册 p 参数，参照 KuGouMusicApi rsaEncrypt2）"""
+    from Crypto.Cipher import PKCS1_v1_5
+    from Crypto.PublicKey import RSA
+    pem = f"-----BEGIN PUBLIC KEY-----\n{LITE_RSA_PUB_KEY}\n-----END PUBLIC KEY-----"
+    pub_key = RSA.import_key(pem)
+    cipher = PKCS1_v1_5.new(pub_key)
+    if isinstance(data, dict):
+        data = json.dumps(data)
+    return cipher.encrypt(data.encode()).hex()
 
 
 class KuGouPlatform(MusicPlatform):
@@ -201,35 +239,89 @@ class KuGouPlatform(MusicPlatform):
         return True
 
     async def _register_device(self):
+        """酷狗设备注册 v2（参照 KuGouMusicApi register_dev.js）：
+        完整设备信息 AES 加密 + RSA(p) + android 签名，成功换取有效 dfid。
+        v1 接口已失效（返回空），仅保留 v2。"""
         if self._device_registered:
             return
         self._device_registered = True
         data_map = {
-            "mid": self._mid,
-            "uuid": _md5(f"{self._dfid}{self._mid}"),
-            "appid": "1014",
-            "userid": str(self._userid or 0),
+            "availableRamSize": 4983533568,
+            "availableRomSize": 48114719,
+            "availableSDSize": 48114717,
+            "basebandVer": "",
+            "batteryLevel": 100,
+            "batteryStatus": 3,
+            "brand": "Redmi",
+            "buildSerial": "unknown",
+            "device": "marble",
+            "imei": self._guid,
+            "imsi": "",
+            "manufacturer": "Xiaomi",
+            "uuid": self._guid,
+            "accelerometer": False,
+            "accelerometerValue": "",
+            "gravity": False,
+            "gravityValue": "",
+            "gyroscope": False,
+            "gyroscopeValue": "",
+            "light": False,
+            "lightValue": "",
+            "magnetic": False,
+            "magneticValue": "",
+            "orientation": False,
+            "orientationValue": "",
+            "pressure": False,
+            "pressureValue": "",
+            "step_counter": False,
+            "step_counterValue": "",
+            "temperature": False,
+            "temperatureValue": "",
         }
-        params = {**data_map, "p.token": "", "platid": 4}
-        body_b64 = base64.b64encode(json.dumps(data_map).encode()).decode()
-        params["signature"] = _signature_register(params)
-
-        headers = {"User-Agent": ANDROID_UA}
-        client = httpx.AsyncClient(follow_redirects=True, timeout=15)
         try:
-            resp = await client.post(
-                "https://userservice.kugou.com/risk/v1/r_register_dev",
-                params=params,
-                content=body_b64,
-                headers=headers,
-            )
-            data = resp.json()
-            if data.get("status") == 1 and data.get("data"):
-                self._dfid = data["data"].get("dfid", self._dfid)
+            aes = _playlist_aes_encrypt(data_map)
+            p = _rsa_encrypt2({"aes": aes["key"], "uid": self._userid, "token": self._token})
+
+            clienttime = int(time.time())
+            params = {
+                "dfid": self._dfid,
+                "mid": self._mid,
+                "uuid": _md5(f"{self._dfid}{self._mid}"),
+                "appid": LITE_APPID,
+                "clientver": LITE_CLIENTVER,
+                "clienttime": clienttime,
+                "userid": self._userid or 0,
+                "part": 1,
+                "platid": 1,
+                "p": p,
+            }
+            params["signature"] = _signature_android(params, aes["str"])
+            headers = {
+                "User-Agent": ANDROID_UA,
+                "dfid": self._dfid,
+                "clienttime": str(clienttime),
+                "mid": self._mid,
+                "kg-rc": "1",
+                "kg-thash": "5d816a0",
+                "kg-rec": "1",
+                "kg-rf": "B9EDA08A64250DEFFBCADDEE00F8F25F",
+            }
+            client = httpx.AsyncClient(follow_redirects=True, timeout=15)
+            try:
+                resp = await client.post(
+                    "https://userservice.kugou.com/risk/v2/r_register_dev",
+                    params=params,
+                    content=aes["str"].encode(),
+                    headers=headers,
+                )
+                # 响应为 AES 密文：base64 编码后解密
+                dec = _playlist_aes_decrypt(base64.b64encode(resp.content).decode(), aes["key"])
+                if dec.get("status") == 1 and dec.get("data"):
+                    self._dfid = dec["data"].get("dfid", self._dfid)
+            finally:
+                await client.aclose()
         except Exception:
             pass
-        finally:
-            await client.aclose()
 
     async def _lite_request(self, url: str, method: str = "GET", params: dict = None,
                             data=None, x_router: str = "", base_url: str = "",
@@ -260,7 +352,8 @@ class KuGouPlatform(MusicPlatform):
             )
 
         data_str = ""
-        if isinstance(data, dict):
+        if isinstance(data, (dict, list)):
+            # 数组/对象均紧凑序列化参与签名（酷狗 JS 端 JSON.stringify 输出无空格）
             data_str = json.dumps(data, separators=(',', ':'))
         elif isinstance(data, str):
             data_str = data
@@ -292,7 +385,7 @@ class KuGouPlatform(MusicPlatform):
                 resp = await client.get(full_url, params=all_params, headers=headers)
             else:
                 resp = await client.post(full_url, params=all_params, headers=headers,
-                                         json=data if isinstance(data, dict) else None,
+                                         json=data if isinstance(data, (dict, list)) else None,
                                          content=data_str if isinstance(data, str) else None)
             for cookie in resp.cookies.jar:
                 self.cookies[cookie.name] = cookie.value
@@ -741,6 +834,129 @@ class KuGouPlatform(MusicPlatform):
             return None
         finally:
             await client.aclose()
+
+    # ── 歌单导入（概念版 API，参照 MakcRe/KuGouMusicApi）──
+
+    @staticmethod
+    def _parse_playlist_id(ref: str) -> str:
+        """从酷狗歌单链接/ID 中提取歌单 ID（global_collection_id 或老版纯数字 ID）。"""
+        ref = (ref or "").strip()
+        if not ref:
+            return ""
+        # 纯 ID：collection_xxx 或纯数字
+        if ref.startswith("collection_") or ref.isdigit():
+            return ref
+        # URL 参数：global_collection_id / global_specialid
+        for key in ("global_collection_id", "global_specialid", "collection_id"):
+            m = re.search(rf"[?&#]{key}=([A-Za-z0-9_]+)", ref)
+            if m:
+                return m.group(1)
+        # PC 老歌单：/special/single/{id}.html
+        m = re.search(r"/special/single/(\d+)\.html", ref)
+        if m:
+            return m.group(1)
+        # 移动端歌单：m.kugou.com/songlist/gcid_xxx（gcid 后跟的 xxx 即歌单 ID）
+        m = re.search(r"/songlist/gcid_([A-Za-z0-9_]+)", ref)
+        if m:
+            return m.group(1)
+        return ""
+
+    async def import_playlist(self, ref: str, page: int = 1, page_size: int = 30) -> dict:
+        """导入酷狗歌单（分页），返回 {name, cover, creator, total, songs}。
+
+        歌曲端点：GET /pubsongs/v2/get_other_list_file_nofilt（public 歌单无需登录）。
+        短链（t1.kugou.com 分享链接）跟随重定向后从最终 URL 提取歌单 ID。
+        """
+        gid = self._parse_playlist_id(ref)
+        if not gid and re.match(r"^(?:https?://|[\w-]+\.)", ref or ""):
+            # 短链（t1.kugou.com 分享链接）跟随重定向后从最终 URL 提取歌单 ID；
+            # 粘贴时可能省略协议头，自动补全
+            url = ref if re.match(r"^https?://", ref) else "https://" + ref
+            client = httpx.AsyncClient(follow_redirects=True, timeout=15)
+            try:
+                resp = await client.get(url, headers={"User-Agent": ANDROID_UA})
+                gid = self._parse_playlist_id(str(resp.url))
+            except Exception:
+                pass
+            finally:
+                await client.aclose()
+        if not gid:
+            raise ValueError("未能识别酷狗歌单链接/ID")
+
+        begin_idx = (page - 1) * page_size
+        resp = await self._lite_request(
+            "/pubsongs/v2/get_other_list_file_nofilt",
+            params={
+                "area_code": 1,
+                "begin_idx": begin_idx,
+                "plat": 1,
+                "type": 1,
+                "mode": 1,
+                "personal_switch": 1,
+                "extend_fields": "abtags,hot_cmt,popularization",
+                "pagesize": page_size,
+                "global_collection_id": gid,
+            },
+        )
+        data = resp.get("data") or {}
+        list_info = data.get("list_info") or {}
+        total = int(list_info.get("count") or data.get("count") or 0)
+
+        songs = []
+        for f in data.get("songs") or []:
+            if not isinstance(f, dict):
+                continue
+            song_hash = str(f.get("hash") or "").lower()
+            if not song_hash:
+                continue
+            raw_name = str(f.get("name") or "")
+            singer_name = str(f.get("remark") or "")
+            singerinfo = f.get("singerinfo") or []
+            if singerinfo and isinstance(singerinfo[0], dict):
+                singer_name = singerinfo[0].get("name") or singer_name
+            # 歌名常为 "歌手 - 歌名" 前缀格式（多歌手用顿号连接），去掉避免与歌手字段重复
+            song_name = raw_name
+            if " - " in raw_name:
+                head, _, tail = raw_name.partition(" - ")
+                if singer_name and singer_name in head:
+                    song_name = tail
+            # relate_goods 含各音质 hash：level 4=320k，level 5=无损
+            hq_hash = sq_hash = ""
+            for g in f.get("relate_goods") or []:
+                if not isinstance(g, dict):
+                    continue
+                level = int(g.get("level") or 0)
+                h = str(g.get("hash") or "").lower()
+                if h and h != song_hash:
+                    if level == 4 and not hq_hash:
+                        hq_hash = h
+                    elif level == 5 and not sq_hash:
+                        sq_hash = h
+            cover = str(f.get("cover") or "")
+            songs.append(Song(
+                id=song_hash,
+                name=song_name,
+                artist=singer_name,
+                album=(f.get("albuminfo") or {}).get("name", "") if isinstance(f.get("albuminfo"), dict) else "",
+                cover=_https_url(cover.replace("{size}", "240") if "{size}" in cover else cover),
+                platform="kugou",
+                duration=int(f.get("timelen") or 0) // 1000,
+                extra={
+                    "hash": song_hash,
+                    "album_id": str(f.get("album_id") or ""),
+                    "hq_hash": hq_hash,
+                    "sq_hash": sq_hash,
+                },
+            ))
+
+        pic = str(list_info.get("pic") or "")
+        return {
+            "name": str(list_info.get("name") or "") or f"酷狗歌单 {gid}",
+            "cover": _https_url(pic.replace("{size}", "240") if "{size}" in pic else pic),
+            "creator": str(list_info.get("list_create_username") or ""),
+            "total": total,
+            "songs": songs,
+        }
 
     async def get_lyrics(self, song: Song) -> str:
         song_hash = (song.extra.get("hash", "") or song.id).lower()

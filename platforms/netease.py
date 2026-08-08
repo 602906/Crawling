@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import time
 import random
 import string
@@ -357,3 +358,124 @@ class NetEasePlatform(MusicPlatform):
         if lrc and tlrc:
             lrc = lrc + "\n" + tlrc
         return lrc
+
+    # ── 歌单导入（官方接口，参照 EchoMusic netease.ts）──
+
+    @staticmethod
+    def _parse_playlist_id(ref: str) -> str:
+        """从网易云歌单链接/ID 中提取歌单 ID（纯数字）。"""
+        ref = (ref or "").strip()
+        if not ref:
+            return ""
+        if ref.isdigit():
+            return ref
+        # music.163.com/#/playlist?id=xxx / y.music.163.com/m/playlist?id=xxx 等
+        m = re.search(r"[?&#]id=(\d+)", ref)
+        if m:
+            return m.group(1)
+        m = re.search(r"/playlist(?:/|=)(\d+)", ref)
+        if m:
+            return m.group(1)
+        return ""
+
+    async def import_playlist(self, ref: str, page: int = 1, page_size: int = 30) -> dict:
+        """导入网易云歌单（分页），返回 {name, cover, creator, total, songs}。
+
+        v6/playlist/detail 拿全量 trackIds（保持原顺序），v3/song/detail
+        批量补全缺失曲目详情，无需登录、不依赖第三方公共实例。
+        """
+        pid = self._parse_playlist_id(ref)
+        if not pid and re.match(r"^(?:https?://|[\w-]+\.)", ref or ""):
+            # 短链（163cn.tv 等）：跟随重定向后再解析；粘贴时可能省略协议头，自动补全
+            url = ref if re.match(r"^https?://", ref) else "https://" + ref
+            async with self._client() as client:
+                try:
+                    resp = await client.get(url)
+                    pid = self._parse_playlist_id(str(resp.url))
+                except Exception:
+                    pass
+        if not pid:
+            raise ValueError("未能识别网易云歌单链接/ID")
+
+        async with self._client() as client:
+            resp = await client.get(
+                "https://music.163.com/api/v6/playlist/detail",
+                params={"id": pid, "n": "100000"},
+            )
+            data = resp.json()
+        playlist = (data or {}).get("playlist") or {}
+        if not playlist:
+            raise ValueError("歌单不存在或已失效")
+
+        # 全量 trackIds，保持歌单原顺序
+        track_ids = []
+        for t in playlist.get("trackIds") or []:
+            tid = t.get("id") if isinstance(t, dict) else t
+            if tid is not None:
+                track_ids.append(int(tid))
+        if not track_ids:
+            raise ValueError("歌单为空")
+
+        begin = (page - 1) * page_size
+        page_ids = track_ids[begin:begin + page_size]
+        total = len(track_ids)
+
+        # 初始映射：detail 返回的前若干完整曲目
+        detail_map = {}
+        for t in playlist.get("tracks") or []:
+            try:
+                detail_map[int(t["id"])] = t
+            except (KeyError, TypeError, ValueError):
+                pass
+
+        # 缺失的曲目用 v3/song/detail 批量补全（500/批）
+        missing = [tid for tid in page_ids if tid not in detail_map]
+        for i in range(0, len(missing), 500):
+            chunk = missing[i:i + 500]
+            payload = {"c": json.dumps([{"id": tid} for tid in chunk], separators=(',', ':'))}
+            try:
+                async with self._client() as client:
+                    r = await client.post("https://music.163.com/api/v3/song/detail", data=payload)
+                    d = r.json()
+                for s in d.get("songs") or []:
+                    try:
+                        detail_map[int(s["id"])] = s
+                    except (KeyError, TypeError, ValueError):
+                        pass
+            except Exception:
+                pass
+
+        songs = []
+        for tid in page_ids:
+            t = detail_map.get(tid)
+            if not t:
+                continue
+            # v3 系列接口用 ar/al，旧接口用 artists/album，兼容两者
+            if "ar" in t:
+                artists = [a.get("name", "") for a in t.get("ar") or []]
+                album_info = t.get("al") or {}
+            else:
+                artists = [a.get("name", "") for a in t.get("artists") or []]
+                album_info = t.get("album") or {}
+            cover = album_info.get("picUrl", "") or album_info.get("pic", "") or ""
+            if cover.startswith("http://"):
+                cover = "https://" + cover[7:]
+            songs.append(Song(
+                id=str(tid),
+                name=t.get("name", ""),
+                artist="/".join(artists),
+                album=album_info.get("name", ""),
+                cover=cover,
+                platform="netease",
+                duration=int(t.get("dt") or t.get("duration") or 0) // 1000,
+                extra={"fee": t.get("fee", 0)},
+            ))
+
+        creator = playlist.get("creator") or {}
+        return {
+            "name": playlist.get("name", "") or f"网易云歌单 {pid}",
+            "cover": playlist.get("coverImgUrl", "") or "",
+            "creator": creator.get("nickname", ""),
+            "total": total,
+            "songs": songs,
+        }

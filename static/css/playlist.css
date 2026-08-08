@@ -42,6 +42,15 @@
     color: var(--text-primary);
     background: var(--bg-hover);
 }
+.mode-btn svg,
+.playlist-clear svg,
+.playlist-close svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    display: inline-block;
+    vertical-align: -0.125em;
+}
 
 .mode-btn {
     padding: 4px 12px;

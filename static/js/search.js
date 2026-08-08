@@ -13,6 +13,7 @@ let currentSongs = [];
         const keyword = document.getElementById('searchInput').value.trim();
         if (!keyword) return;
         _showingFavorites = false;
+        hideMyPlaylistView();
         currentPage = page || 1;
 
         document.getElementById('emptyState').style.display = 'none';
@@ -87,9 +88,31 @@ let currentSongs = [];
         const song = currentSongs[index];
         if (!song) return;
 
+        let target = song;
+        if (song._pending) {
+            // 分享歌单详情补全中：先解析该曲（单曲接口快），并写回歌单避免重复解析
+            try {
+                const resp = await fetch(`/api/resolve-song/${song.platform}/${song.id}`);
+                if (resp.ok) {
+                    target = await resp.json();
+                    const pl = _myPlaylists.find(p => p.id === _activePlaylistId);
+                    const t = pl && pl.songs.find(s => s.platform === target.platform && s.id === target.id);
+                    if (t && t._pending) {
+                        Object.assign(t, target);
+                        t._pending = false;
+                        _plSave();
+                        if (_activePlaylistId === pl.id) {
+                            currentSongs[index] = t;
+                            renderSongs(pl.songs);
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
         playlist = [...currentSongs];
         playIndex = index;
         savePlaylist();
         renderPlaylist();
-        await loadAndPlay(song);
+        await loadAndPlay(target);
     }

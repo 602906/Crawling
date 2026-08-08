@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block head %}
 <link rel="stylesheet" href="/static/css/search.css">
@@ -7,44 +7,60 @@
 <link rel="stylesheet" href="/static/css/playlist.css">
 <link rel="stylesheet" href="/static/css/favorites.css">
 <link rel="stylesheet" href="/static/css/context-menu.css">
+<link rel="stylesheet" href="/static/css/playlists.css">
 {% endblock %}
 
 {% block content %}
-<div class="search-page">
-    <div class="search-header">
-        <div class="search-bar">
-            <input type="text" id="searchInput" class="search-input" placeholder="搜索歌曲、歌手..."
-                   onkeydown="if(event.key==='Enter')doSearch()">
-            <button class="btn btn-primary search-btn" onclick="doSearch()">搜索</button>
-        </div>
-        <div class="platform-filters">
-            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">全部</button>
-            {% for pid, cls in platforms.items() %}
-            <button class="filter-btn" data-filter="{{ pid }}" onclick="setFilter('{{ pid }}')">
-                {{ cls.name }}
-                {% if logged_in.get(pid, False) %}
-                <span class="badge">已登录</span>
-                {% endif %}
-            </button>
-            {% endfor %}
-            <button class="filter-btn fav-filter" data-filter="favorites" onclick="showFavorites()">♥ 收藏</button>
-        </div>
-    </div>
-
-    <div class="results-container" id="resultsContainer">
-        <div class="empty-state" id="emptyState">
-            <div class="empty-icon">&#9835;</div>
-            <p>输入关键词开始搜索</p>
-            <div class="site-footer">
-                <span>项目地址</span>
-                <a href="https://github.com/602906/Crawling" target="_blank" rel="noopener noreferrer">Github</a>
-                <span class="site-footer-sep">|</span>
-                <a href="https://qm.qq.com/q/TXN40V1lYs" target="_blank" rel="noopener noreferrer">QQ</a>
+<div class="home-layout">
+    <aside class="playlist-sidebar hidden" id="playlistSidebar">
+        <div class="playlist-sidebar-header">
+            <span class="playlist-sidebar-title">我的歌单</span>
+            <div class="playlist-sidebar-tools">
+                <button class="playlist-sidebar-btn" onclick="createEmptyPlaylist()" title="新建歌单"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+                <button class="playlist-sidebar-btn" onclick="openImportModal()" title="导入平台歌单"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></button>
             </div>
         </div>
-        <div class="loading" id="searchLoading" style="display:none;"></div>
-        <div class="song-list" id="songList"></div>
-        <div class="pagination" id="pagination" style="display:none;"></div>
+        <div class="playlist-sidebar-list" id="playlistSidebarList"></div>
+    </aside>
+
+    <div class="home-main">
+        <div class="search-page">
+            <div class="search-header">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" class="search-input" placeholder="搜索歌曲、歌手..."
+                           onkeydown="if(event.key==='Enter')doSearch()">
+                    <button class="btn btn-primary search-btn" onclick="doSearch()">搜索</button>
+                </div>
+                <div class="platform-filters">
+                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">全部</button>
+                    {% for pid, cls in platforms.items() %}
+                    <button class="filter-btn" data-filter="{{ pid }}" onclick="setFilter('{{ pid }}')">
+                        {{ cls.name }}
+                        {% if logged_in.get(pid, False) %}
+                        <span class="badge">已登录</span>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                    <button class="filter-btn fav-filter" data-filter="favorites" onclick="showFavorites()">♥ 收藏</button>
+                </div>
+            </div>
+
+            <div class="results-container" id="resultsContainer">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">&#9835;</div>
+                    <p>输入关键词开始搜索</p>
+                    <div class="site-footer">
+                        <span>项目地址</span>
+                        <a href="https://github.com/602906/Crawling" target="_blank" rel="noopener noreferrer">Github</a>
+                        <span class="site-footer-sep">|</span>
+                        <a href="https://qm.qq.com/q/TXN40V1lYs" target="_blank" rel="noopener noreferrer">QQ</a>
+                    </div>
+                </div>
+                <div class="loading" id="searchLoading" style="display:none;"></div>
+                <div class="song-list" id="songList"></div>
+                <div class="pagination" id="pagination" style="display:none;"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -55,7 +71,6 @@
 </div>
 
 <div class="lyrics-panel hidden" id="lyricsPanel">
-    <div class="lyrics-tab" id="lyricsTab" onclick="toggleLyrics()">&#8249;</div>
     <div class="lyrics-header">
         <span class="lyrics-title" id="lyricsTitle">歌词</span>
         <div class="lyrics-export" id="lyricsExport" style="display:none;">
@@ -72,13 +87,17 @@
     </div>
 </div>
 
+<!-- 面板开关按钮：独立于面板（fixed + 高 z-index），任何面板展开都盖不住；collapsed=面板收起时贴屏幕边缘 -->
+<div class="playlist-tab collapsed" id="playlistTab" onclick="togglePlaylistSidebar()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
+<div class="lyrics-tab collapsed" id="lyricsTab" onclick="toggleLyrics()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></div>
+
 <div class="playlist-panel" id="playlistPanel" style="display:none;">
     <div class="playlist-header">
         <span>播放列表 (<span id="playlistCount">0</span>)</span>
         <div style="display:flex;gap:4px;align-items:center;">
-            <button class="mode-btn active" id="modeBtn" onclick="cyclePlayMode()" title="顺序播放">&#8595; 顺序播放</button>
-            <button class="playlist-clear" onclick="clearPlaylist()" title="清空列表">&#128465;</button>
-            <button class="playlist-close" onclick="togglePlaylist()">&#10005;</button>
+            <button class="mode-btn active" id="modeBtn" onclick="cyclePlayMode()" title="顺序播放"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg> 顺序播放</button>
+            <button class="playlist-clear" onclick="clearPlaylist()" title="清空列表"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+            <button class="playlist-close" onclick="togglePlaylist()" title="关闭"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
         </div>
     </div>
     <div class="playlist-content" id="playlistContent">
@@ -136,6 +155,10 @@
 <div class="ctx-menu" id="ctxMenu" style="display:none;">
     <div class="ctx-item" onclick="ctxPlay()">&#9654; 播放</div>
     <div class="ctx-item" onclick="ctxAddToPlaylist()">+ 添加到播放列表</div>
+    <div class="ctx-item ctx-has-sub" id="ctxMyPlaylistItem">
+        + 添加到歌单 <span class="ctx-arrow">&#9656;</span>
+        <div class="ctx-submenu" id="ctxMyPlaylistSub"></div>
+    </div>
     <div class="ctx-item" onclick="ctxToggleFav()"><span id="ctxFavText">♥ 收藏</span></div>
     <div class="ctx-separator"></div>
     <div class="ctx-item ctx-has-sub" id="ctxDownloadItem">
@@ -158,6 +181,36 @@
     </div>
 </div>
 
+<div class="pl-import-overlay" id="plImportOverlay" style="display:none;" onclick="if(event.target===this)closeImportModal()">
+    <div class="pl-import-modal">
+        <div class="pl-import-header">
+            <span class="pl-import-title">导入歌单</span>
+            <button class="pl-import-close" onclick="closeImportModal()">&#10005;</button>
+        </div>
+        <div class="pl-import-body">
+            <div class="pl-import-field">
+                <label class="pl-import-label" for="plImportPlatform">平台</label>
+                <select id="plImportPlatform" class="pl-import-select">
+                    <option value="netease">网易云音乐</option>
+                    <option value="kugou">酷狗音乐</option>
+                </select>
+            </div>
+            <div class="pl-import-field">
+                <label class="pl-import-label" for="plImportRef">歌单链接或 ID</label>
+                <input type="text" id="plImportRef" class="pl-import-input"
+                       placeholder="粘贴歌单链接或直接输入 ID"
+                       onkeydown="if(event.key==='Enter')startImport()">
+            </div>
+            <div class="pl-import-preview" id="plImportPreview" style="display:none;"></div>
+            <div class="pl-import-error" id="plImportError" style="display:none;"></div>
+            <div class="pl-import-actions">
+                <button class="btn btn-primary" id="plImportBtn" onclick="startImport()">导入</button>
+                <button class="btn" onclick="closeImportModal()">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -167,4 +220,6 @@
 <script src="/static/js/playlist.js"></script>
 <script src="/static/js/favorites.js"></script>
 <script src="/static/js/context-menu.js"></script>
+<script src="/static/js/playlists.js"></script>
 {% endblock %}
+
