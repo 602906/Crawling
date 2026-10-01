@@ -24,8 +24,9 @@
     border-radius: var(--radius);
     box-shadow: 0 8px 24px var(--shadow);
     padding: 12px 16px;
-    z-index: 200;
+    z-index: 300;  /* 高于歌单列表(250+) 和均衡器遮罩(240)，确保设置菜单在最上层 */
     min-width: 220px;
+    animation: fadeIn 0.2s ease-out;
 }
 .settings-panel.open { display: block; }
 
@@ -36,6 +37,16 @@
     gap: 12px;
     font-size: 14px;
     color: var(--text-primary);
+    /* 预留边框空间：hover 加边框时不发生布局位移 */
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    transition: border-color 0.2s, background 0.2s;
+}
+.settings-item:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
 }
 
 .settings-hint {

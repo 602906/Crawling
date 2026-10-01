@@ -40,6 +40,35 @@ document.addEventListener('visibilitychange', _touchThemeTs);
 
 document.addEventListener('DOMContentLoaded', _applyThemeIcon);
 
+// === 侧面板互斥（播放列表 / 收藏列表 / 均衡器）===
+// 同一时刻只允许打开一个：打开任意一个前先关闭其他；
+// 点击面板之外的空白区域时全部关闭（面板自身/开关按钮/右键菜单/模态/歌词面板不触发）。
+function closeAllSidePanels() {
+    // 播放列表（style 驱动显隐）
+    if (typeof playlistVisible !== 'undefined') playlistVisible = false;
+    var pl = document.getElementById('playlistPanel');
+    if (pl) pl.style.display = 'none';
+    // 收藏列表（style 驱动显隐）
+    if (typeof _favoritesPanelVisible !== 'undefined') _favoritesPanelVisible = false;
+    var fv = document.getElementById('favoritesPanel');
+    if (fv) fv.style.display = 'none';
+    // 均衡器（class 驱动显隐）
+    var eq = document.getElementById('eqPanel');
+    if (eq) eq.classList.remove('open');
+    var backdrop = document.getElementById('eqPanelBackdrop');
+    if (backdrop) backdrop.classList.remove('active');
+}
+
+document.addEventListener('click', function (e) {
+    var keep = e.target.closest(
+        '#playlistPanel, #favoritesPanel, .eq-panel, ' +
+        '#playlistToggleBtn, #favoritesToggleBtn, #eqBtn, .settings-eq, ' +
+        '.ctx-menu, #infoOverlay, #plImportOverlay, .lyrics-panel'
+    );
+    if (keep) return;
+    closeAllSidePanels();
+});
+
 function _openAudioCache() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open('MusicCatchAudioCache', 1);

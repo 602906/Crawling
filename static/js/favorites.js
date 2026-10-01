@@ -65,14 +65,12 @@ let _showingFavorites = false;
     let _favoritesPanelVisible = false;
 
     function toggleFavoritesPanel() {
-        _favoritesPanelVisible = !_favoritesPanelVisible;
         const panel = document.getElementById('favoritesPanel');
+        // 打开前先关闭其他侧面板（互斥：同一时刻只开一个）
+        if (!_favoritesPanelVisible && typeof closeAllSidePanels === 'function') closeAllSidePanels();
+        _favoritesPanelVisible = !_favoritesPanelVisible;
         panel.style.display = _favoritesPanelVisible ? 'flex' : 'none';
-        if (_favoritesPanelVisible) {
-            playlistVisible = false;
-            document.getElementById('playlistPanel').style.display = 'none';
-            renderFavoritesPanel();
-        }
+        if (_favoritesPanelVisible) renderFavoritesPanel();
     }
 
     function renderFavoritesPanel() {

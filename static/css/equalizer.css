@@ -1,0 +1,274 @@
+/* ── 均衡器面板（样式完全自给，不依赖 pip.css）── */
+
+/* 播放条上的 EQ 按钮 */
+.eq-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.eq-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.eq-btn.active { color: var(--accent); }
+
+/* ── 弹出面板 ── */
+.eq-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 580px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px var(--shadow-strong);
+    z-index: 250;
+    padding: 16px 20px;
+    display: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+    transition: opacity 0.25s ease, transform 0.25s ease, display 0.25s ease;
+    animation: none;
+}
+.eq-panel.open {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* 面板后方半透明亚克力遮罩——无颜色，仅虚化；覆盖中间区域，不遮顶栏和底栏 */
+.eq-panel-backdrop {
+    position: fixed;
+    top: 56px;
+    bottom: var(--player-bar-h, 72px);
+    left: 0;
+    right: 0;
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    background: transparent;
+    z-index: 240;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+.eq-panel.open ~ .eq-panel-backdrop,
+.eq-panel-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── 预设行 ── */
+.eq-presets {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.eq-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+/* 预设标签按钮（替换 select） */
+.eq-preset-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+.eq-preset-btn {
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.18s;
+    line-height: 1.4;
+    font-family: inherit;
+}
+.eq-preset-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.eq-preset-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.eq-presets select { display: none; }
+
+.eq-btn-sm {
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.eq-btn-sm:hover { color: var(--text-primary); background: var(--bg-card); }
+.eq-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1;
+}
+.eq-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+.eq-close svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    display: inline-block;
+    vertical-align: -0.125em;
+}
+
+/* ── 启用/禁用开关（eq-switch，不依赖 pip.css 的 .switch）── */
+.eq-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+}
+.eq-switch input { opacity: 0; width: 0; height: 0; }
+.eq-switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    transition: 0.2s;
+}
+.eq-switch-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    transition: 0.2s;
+}
+.eq-switch input:checked + .eq-switch-slider { background: var(--accent); border-color: var(--accent); }
+.eq-switch input:checked + .eq-switch-slider::before { transform: translateX(18px); background: #fff; }
+
+/* ── 频段滑块容器 ── */
+.eq-sliders {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    height: 200px;
+    padding: 0 4px;
+}
+.eq-band {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    max-width: 64px;
+    min-width: 0;
+}
+.eq-band-value {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    flex-shrink: 0;
+}
+/* 自绘垂直滑块轨道：flex:1 占满频段列的剩余高度 */
+.eq-track {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    cursor: ns-resize;
+    touch-action: none;
+}
+/* 轨道竖线：贴容器边缘留出 thumb 半宽余量，避免 thumb 溢出 */
+.eq-track::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    transform: translateX(-50%);
+    background: var(--border);
+    border-radius: 2px;
+}
+/* 填充高亮条（从底部往上涨，跟随 gain 值） */
+.eq-track-fill {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    transform: translateX(-50%);
+    background: var(--accent);
+    border-radius: 2px;
+    pointer-events: none;
+}
+/* 拖动 thumb（div 实现，bottom 百分比决定位置） */
+.eq-thumb {
+    position: absolute;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    transform: translate(-50%, 50%);   /* 以底边中心对准百分比位置 */
+    pointer-events: none;
+    box-sizing: border-box;
+}
+.eq-band-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* 底部提示 */
+.eq-footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+.eq-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* 移动端适配 */
+@media (max-width: 520px) {
+    .eq-panel {
+        width: calc(100vw - 24px);
+        padding: 12px 14px;
+    }
+    .eq-sliders { height: 140px; }
+    .eq-band-label { font-size: 9px; }
+    .eq-band-value { display: none; }
+}

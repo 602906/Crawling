@@ -165,8 +165,8 @@
         }
         if (!groups.size) { showToast('歌单没有可分享的歌曲'); return; }
         const listParam = [...groups.entries()].map(([p, ids]) => `${p}:${ids.join(',')}`).join(';');
-        // 平台代码与 ID 均为 URL 安全字符（hex/数字/BV），直接拼接保持链接最短
-        const url = `${location.origin}/?list=${listParam}`;
+        // 参数值整体 URL 编码（: → %3A、, → %2C、; → %3B），避免分享到聊天软件被截断/误解析
+        const url = `${location.origin}/?list=${encodeURIComponent(listParam)}`;
         const text = `${pl.name} (${pl.songs.length} 首)\n${url}`;
         _copyShareText(text).then(() => showToast('已复制分享链接'));
     }

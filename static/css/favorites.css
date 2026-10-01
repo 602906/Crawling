@@ -42,6 +42,14 @@
     color: var(--text-primary);
     background: var(--bg-hover);
 }
+.favorites-close svg,
+.favorites-clear svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    display: inline-block;
+    vertical-align: -0.125em;
+}
 
 .favorites-content {
     flex: 1;

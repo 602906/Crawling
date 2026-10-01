@@ -113,6 +113,15 @@ def _extract_gate_tokens(request: Request) -> list[str]:
     return out
 
 
+def _extract_gate_cookies(request: Request) -> list[tuple[str, str]]:
+    """从请求 cookies 中提取「cookie 名, token」对（动态名与真实名均可识别）。"""
+    out: list[tuple[str, str]] = []
+    for name, value in request.cookies.items():
+        if is_gate_cookie_name(name) or name == config.GATE_COOKIE_NAME:
+            out.append((name, value))
+    return out
+
+
 # 路由路径仅在服务启动时生成一次（FastAPI 路由注册需要固定路径）
 _route_path = "/" + _rand_name(10)
 
@@ -245,6 +254,24 @@ def register_gate_token(request: Request) -> tuple[str, str]:
     return token, _gen_cookie_name(config.GATE_COOKIE_NAME)
 
 
+def revoke_gate_tokens(request: Request) -> list[str]:
+    """清除该请求携带的全部门禁 token（服务端记录 + 浏览器 cookie），返回被清 cookie 名。
+
+    重新注册前调用：动态 cookie 名每次不同，若只增不删，浏览器会积累多个残留
+    门禁 cookie、服务端 _tokens 也残留旧记录；先删旧再写新，保证只保留最新一个。
+    """
+    removed: list[str] = []
+    for name in list(request.cookies.keys()):
+        if not (is_gate_cookie_name(name) or name == config.GATE_COOKIE_NAME):
+            continue
+        _tokens.pop(request.cookies[name], None)
+        removed.append(name)
+    if removed:
+        ip = request.client.host if request.client else "?"
+        logger.info("门禁重注册：清除旧 token %d 个（IP=%s）", len(removed), ip)
+    return removed
+
+
 def validate_gate_token(request: Request, strict_fp: bool = True) -> bool:
     """验证门禁 cookie（动态名）+ IP/浏览器指纹。首次通过后延长 TTL。
 
@@ -286,13 +313,17 @@ def validate_gate_token(request: Request, strict_fp: bool = True) -> bool:
     return False
 
 
-def heartbeat_gate_token(request: Request) -> bool:
-    """心跳 → 续期（同时校验 IP/浏览器指纹，任一有效门禁 token 即可续期）。"""
-    tokens = _extract_gate_tokens(request)
-    if not tokens:
-        return False
+def heartbeat_gate_token(request: Request):
+    """心跳 → 续期（同时校验 IP/浏览器指纹，任一有效门禁 token 即可续期）。
+
+    返回值为 (cookie_name, token) 元组：成功续期的动态 cookie 名 + token，
+    供调用方刷新浏览器 cookie 最大生命期；失败返回 None。
+    """
+    pairs = _extract_gate_cookies(request)
+    if not pairs:
+        return None
     ip, fp = _client_fingerprint(request)
-    for token in tokens:
+    for cookie_name, token in pairs:
         if token not in _tokens:
             continue
         exp, bound_ip, bound_fp = _tokens[token]
@@ -302,10 +333,13 @@ def heartbeat_gate_token(request: Request) -> bool:
         if ip != bound_ip or fp != bound_fp:
             del _tokens[token]
             continue
-        _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, ip, fp)
-        return True
+        # 心跳仅续期 TTL，保留原绑定的 IP + 指纸。
+        # 用当前 fp 覆盖 bound_fp 会把心跳时浏览器缺少的 Sec-CH-UA-Platform/语言
+        # 导致的瞬时指纹污染掉 bound_fp，进而使后续严格模式（/api/play） 403。
+        _tokens[token] = (time.time() + config.GATE_TOKEN_TTL, bound_ip, bound_fp)
+        return (cookie_name, token)
     logger.debug("门禁心跳未续期：token 均失效（IP=%s）", ip)
-    return False
+    return None
 
 
 def gate_token_alive(token: str) -> bool:

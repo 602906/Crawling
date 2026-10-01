@@ -9,22 +9,55 @@ BASE_DIR = sys._MEIPASS if IS_FROZEN else os.path.dirname(os.path.abspath(__file
 PERSIST_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
 
 # ── 基础配置 ──（改配置直接改这里，不修改即默认值；命令行参数可覆盖 host/port/password/https/ssl）
-CONFIG_INI = "config.ini"            # 可选配置文件（位于程序目录，需手动创建，程序不会自动生成）：
-                                    # 优先级 命令行参数 > config.ini > config.py；键名 = 下方常量名（不区分大小写）
-DEBUG = False                        # 调试日志开关：开启后输出 INFO+/DEBUG+ 调试日志（关闭时仅 WARNING+）
-HOST = "0.0.0.0"                    # 监听地址
-PORT = 8000                         # 监听端口
-PASSWORD = "musiccatch"             # 访问密码（保护登录等敏感接口），空字符串表示不启用；
-                                    # 支持 $sha256$<salt>$<hexdigest> 哈希格式（密码不以明文落盘）
-HTTPS = False                       # 以 HTTPS 对外提供服务（TLS 在反向代理层终止时设为 true）：
-                                    # 影响鉴权 cookie 的 Secure 标记，并信任代理转发头（X-Forwarded-Proto 等）
-SSL = False                         # 由本程序直接加载证书提供 HTTPS（不经反向代理时使用）
-SSL_CERTFILE = "cert.pem"           # SSL 证书文件路径
-SSL_KEYFILE = "key.pem"             # SSL 私钥文件路径
-FORWARDED_ALLOW_IPS = "127.0.0.1"   # https 模式下可信代理 IP 白名单（逗号分隔）：
-                                    # 仅信任这些 IP 提供的 X-Forwarded-For/Proto，防止伪造 IP 绕过限速；
-                                    # 默认 127.0.0.1（Nginx 与后端同机），不同机请改为 Nginx 服务器 IP
-VIDEO_PLAYBACK_ENABLED = False      # 是否支持视频播放（B 站）：关闭后 B 站仅播放/下载音频
+
+# 可选配置文件（位于程序目录，需手动创建，程序不会自动生成）：
+# 优先级 命令行参数 > config.ini > config.py；键名 = 下方常量名（不区分大小写）
+CONFIG_INI = "config.ini"
+
+# 调试日志开关：开启后输出 INFO+/DEBUG+ 调试日志（关闭时仅 WARNING+）
+DEBUG = False
+
+# 监听地址
+HOST = "0.0.0.0"
+
+ # 监听端口
+PORT = 8000
+
+# 访问密码（保护登录等敏感接口），空字符串表示不启用；
+# 支持 $sha256$<salt>$<hexdigest> 哈希格式（密码不以明文落盘）
+PASSWORD = "musiccatch"
+
+# 以 HTTPS 对外提供服务（TLS 在反向代理层终止时设为 true）：
+# 影响鉴权 cookie 的 Secure 标记，并信任代理转发头（X-Forwarded-Proto 等）
+HTTPS = False
+
+# 由本程序直接加载证书提供 HTTPS（不经反向代理时使用）
+SSL = False
+
+# SSL 证书文件路径
+SSL_CERTFILE = "cert.pem"
+
+# SSL 私钥文件路径
+SSL_KEYFILE = "key.pem"
+
+# https 模式下可信代理 IP 白名单（逗号分隔）
+# 仅信任这些 IP 提供的 X-Forwarded-For/Proto，防止伪造 IP 绕过限速；
+# 默认 127.0.0.1（Nginx 与后端同机），不同机请改为 Nginx 服务器 IP
+FORWARDED_ALLOW_IPS = "127.0.0.1"
+
+# 是否支持视频播放（B 站）：关闭后 B 站仅播放/下载音频
+VIDEO_PLAYBACK_ENABLED = False
+
+# ── 反 F12 检测开关 ──
+ANTI_F12_ENABLED = False                  # 反 F12 功能总开关：关闭后完全禁用反 F12 检测
+
+# ── 速率限制 ──
+RATE_MAX = 5             # 每 IP 每分钟最多请求数（gate 注册）
+RATE_WINDOW = 60         # 速率限制窗口（秒）
+API_RATE_MAX = 60        # 普通 API 每 IP 每分钟上限（token 校验通过后仍限速）
+STREAM_RATE_MAX = 600    # 流式端点（proxy/download）放宽，避免误伤视频播放
+HEARTBEAT_RATE_MAX = 60  # gate 心跳限速（正常浏览器约 6 次/分钟，多标签页留余量）
+AUTH_VERIFY_RATE_MAX = 10  # 密码验证限速（防爆破，正常用户每次输入只提交 1 次）
 
 
 def _finalize_password(value: str) -> tuple[str, str | None]:
@@ -43,13 +76,7 @@ def _finalize_password(value: str) -> tuple[str, str | None]:
 PASSWORD_HASH = _finalize_password(PASSWORD)[1]
 
 
-# ── 速率限制 ──
-RATE_MAX = 5             # 每 IP 每分钟最多请求数（gate 注册）
-RATE_WINDOW = 60         # 速率限制窗口（秒）
-API_RATE_MAX = 60        # 普通 API 每 IP 每分钟上限（token 校验通过后仍限速）
-STREAM_RATE_MAX = 600    # 流式端点（proxy/download）放宽，避免误伤视频播放
-HEARTBEAT_RATE_MAX = 60  # gate 心跳限速（正常浏览器约 6 次/分钟，多标签页留余量）
-AUTH_VERIFY_RATE_MAX = 10  # 密码验证限速（防爆破，正常用户每次输入只提交 1 次）
+
 
 # ── 代理 URL 白名单（防 SSRF）──
 # 仅允许音乐平台官方域名；IP 直连 / 仿冒域名 / 内网地址一律拒绝
@@ -89,10 +116,11 @@ GATE_TOKEN_TTL = 60                # 验证通过后有效时长（秒）；滑�
 GATE_PENDING_TTL = 3               # 注册后待验证时长（秒）；register 已直接发完整 TTL，此参数保留兼容
 GATE_SCRIPT_TTL = 3                # 挑战页脚本 token 有效期（秒）
 GATE_COOKIE_NAME = "mc_gate"       # 门禁 Cookie 名称
-GATE_COOKIE_MAX_AGE = 86400        # 门禁 Cookie 有效期（秒）
+GATE_COOKIE_MAX_AGE = 15        # 门禁 Cookie 有效期（秒）
 GATE_HEARTBEAT_INTERVAL = 10000    # 心跳间隔（毫秒）
 GATE_RELOAD_TIMEOUT = 500          # 注册失败重试延迟（毫秒）
 GATE_RELOAD_DELAY = 1000           # 注册成功后刷新前等待（毫秒）
+
 
 # ── 反 F12 检测阈值 ──
 AF12_THRESHOLD_MIN = 140           # 窗口尺寸差异阈值下限（px）
@@ -213,6 +241,8 @@ _ARG_SPECS = (
     ("gate-heartbeat-interval", "GATE_HEARTBEAT_INTERVAL", int, f"门禁心跳间隔（毫秒）(默认: {GATE_HEARTBEAT_INTERVAL})"),
     ("gate-reload-timeout", "GATE_RELOAD_TIMEOUT", int, f"门禁注册失败重试延迟（毫秒）(默认: {GATE_RELOAD_TIMEOUT})"),
     ("gate-reload-delay", "GATE_RELOAD_DELAY", int, f"门禁注册成功后刷新前等待（毫秒）(默认: {GATE_RELOAD_DELAY})"),
+    # ── 反 F12 检测开关 ──
+    ("anti-f12", "ANTI_F12_ENABLED", bool, f"反 F12 功能总开关（关闭后完全禁用反 F12 检测）(默认: {ANTI_F12_ENABLED})"),
     # ── 反 F12 检测阈值 ──
     ("af12-threshold-min", "AF12_THRESHOLD_MIN", int, f"窗口尺寸差异阈值下限（px）(默认: {AF12_THRESHOLD_MIN})"),
     ("af12-threshold-max", "AF12_THRESHOLD_MAX", int, f"窗口尺寸差异阈值上限（px）(默认: {AF12_THRESHOLD_MAX})"),

@@ -55,7 +55,8 @@ a:hover { color: var(--accent-hover); }
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
-    z-index: 100;
+    /* 高于歌单/收藏/均衡器面板：设置菜单挂在 navbar 内，必须整体抬到最上层 */
+    z-index: 400;
 }
 
 .nav-brand {

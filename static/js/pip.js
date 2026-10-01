@@ -23,17 +23,13 @@ function _pipSupported() {
 function togglePipLyrics(enabled) {
     pipEnabled = enabled;
     try { localStorage.setItem('mc_pip_lyrics', enabled ? '1' : '0'); } catch (e) {}
-    var hint = document.getElementById('pipHint');
     if (enabled) {
         if (!_pipSupported()) {
-            hint.textContent = '当前浏览器不支持画中画 API，请使用 Chrome/Edge 116+';
             return;
         }
-        hint.textContent = '悬浮窗已开启，播放时将自动显示歌词';
         _openPipWindow();
     } else {
         _closePipWindow();
-        hint.textContent = '';
     }
 }
 
@@ -55,8 +51,6 @@ function _openPipWindow() {
                 try { localStorage.setItem('mc_pip_lyrics', '0'); } catch (e) {}
                 var toggle = document.getElementById('pipLyricsToggle');
                 if (toggle) toggle.checked = false;
-                var hint = document.getElementById('pipHint');
-                if (hint) hint.textContent = '悬浮窗已关闭';
             });
         })
         .catch(function(err) {
@@ -334,10 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (saved === '1') {
             toggle.checked = true;
             pipEnabled = true;
-            var hint = document.getElementById('pipHint');
-            if (hint) hint.textContent = _pipSupported()
-                ? '悬浮窗已开启，播放时将自动显示歌词'
-                : '当前浏览器不支持画中画 API，请使用 Chrome/Edge 116+';
+            // 提示语已移除；如不支持则静默 —— 错误将在打开时弹 Toast
         }
     } catch (e) {}
 });

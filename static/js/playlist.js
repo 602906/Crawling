@@ -79,12 +79,10 @@ let playMode = 'sequence';
 
     function togglePlaylist() {
         const panel = document.getElementById('playlistPanel');
+        // 打开前先关闭其他侧面板（互斥：同一时刻只开一个）
+        if (!playlistVisible && typeof closeAllSidePanels === 'function') closeAllSidePanels();
         playlistVisible = !playlistVisible;
         panel.style.display = playlistVisible ? 'flex' : 'none';
-        if (playlistVisible) {
-            _favoritesPanelVisible = false;
-            document.getElementById('favoritesPanel').style.display = 'none';
-        }
     }
 
     function savePlaylist() {

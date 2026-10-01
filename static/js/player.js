@@ -35,6 +35,10 @@ let _pendingSeek = 0;
         }
         if (isBlob) _activeBlobUrl = url;
         player.src = url;
+        // 均衡器：确保该播放器已建媒体源并接入滤波链
+        if (typeof equalizer !== 'undefined' && equalizer && typeof equalizer.ensurePlayer === 'function') {
+            equalizer.ensurePlayer(player);
+        }
     }
 
     function _resetPlayer(player) {
@@ -133,6 +137,7 @@ let _pendingSeek = 0;
                 _cacheFallback = { key: cacheKey, proxyUrl, token };
                 _setSrc(currentPlayer, URL.createObjectURL(cached.blob), true);
             } else {
+                // 直接使用代理
                 _setSrc(currentPlayer, proxyUrl, false);
             }
 
@@ -207,8 +212,14 @@ let _pendingSeek = 0;
     function _handleMediaError(player) {
         const fb = _cacheFallback;
         if (!fb || fb.token !== _loadToken || player !== currentPlayer) return;
+        // player.error 非空才是媒体元素真正解码失败；防止 waiting/stalled 等非错误
+        // 事件误杀好缓存
+        if (!player.error) return;
         _cacheFallback = null;
         deleteCachedAudio(fb.key);
+        // 本次会话内不再尝试重新缓存这首歌，避免"坏缓存 -> 删除 -> 回退在线
+        // -> 在线播放成功又触发 _bgCacheAudio 重新写入同样残片 -> 下次再坏"的循环
+        _cachingKeys.add(fb.key);
         showToast('缓存已损坏，改用在线播放');
         _setSrc(player, fb.proxyUrl + '&retry=' + Date.now(), false);
         _safePlay(player, fb.token);
@@ -239,6 +250,10 @@ let _pendingSeek = 0;
     function _onStalled() {
         const player = currentPlayer;
         if (!player || player.paused || player.ended || _stallTimer) return;
+        // blob URL 是本地资源，waiting/stalled 仅表示首帧解码中，不是网络阻塞。
+        // HTML 媒体元素在 play() 后必然先触发一次 waiting（等待足够数据才渲染），
+        // 把它当成"缓存卡死"就立即删缓存回退 proxy → 造成"频繁缓存损坏"表象。
+        if (player.src && player.src.startsWith('blob:')) return;
         // 正在播缓存且卡住（截断缓存数据耗尽/解码停滞）→ 回退在线流
         if (_cacheFallback && _cacheFallback.token === _loadToken) {
             _handleMediaError(player);
@@ -301,11 +316,31 @@ let _pendingSeek = 0;
             const ct = (resp.headers.get('content-type') || '').toLowerCase();
             // 代理出错时会返回 JSON/HTML，绝不能写进缓存
             if (!resp.ok || ct.includes('json') || ct.includes('html') || ct.startsWith('text/')) return;
+            // 只接受 200 完整响应。206 是部分内容（浏览器 <audio> 会自动 Range 续取，
+            // 但后台缓存不带 Range，拿到残片会被当成完整文件写入 IndexedDB，
+            // 下次播放必然解码失败，反复触发"缓存已损坏"）。
+            if (resp.status !== 200) return;
+            // 有 Content-Range 说明上游给了部分内容，同样拒绝
+            if (resp.headers.get('content-range')) return;
             const len = resp.headers.get('content-length');
-            const blob = await resp.blob();
+            let blob = await resp.blob();
             // Content-Length 声明与实收不符 = 下载中断，绝不写缓存，防止截断音频下次播放中断
             if (len && blob.size !== Number(len)) return;
             if (!(await isValidMediaBlob(blob))) return;
+            // 上游 Content-Type 经常是 application/octet-stream，浏览器 audio 标签
+            // 对 Blob.type 缺失/错误的缓存无法解码，会触发 _handleMediaError → 删缓存 → 循环。
+            // 按文件头魔数重写 Blob.type，保证第二次播放也能成功解码。
+            const type = (blob.type || '').toLowerCase();
+            if (!type || type === 'application/octet-stream' || type === 'binary/octet-stream') {
+                const buf = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+                let fixedType = null;
+                if (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33) fixedType = 'audio/mpeg';          // ID3
+                else if (buf[0] === 0x66 && buf[1] === 0x4c && buf[2] === 0x61 && buf[3] === 0x43) fixedType = 'audio/flac'; // fLaC
+                else if (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0) fixedType = 'audio/mpeg';               // 裸 MP3
+                else if (buf[0] === 0x4f && buf[1] === 0x67 && buf[2] === 0x67 && buf[3] === 0x53) fixedType = 'audio/ogg';   // OggS
+                else if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) fixedType = 'audio/mp4'; // ftyp
+                if (fixedType) blob = new Blob([blob], { type: fixedType });
+            }
             await putCachedAudio(key, blob, len ? Number(len) : blob.size);
         } catch (e) {
         } finally {

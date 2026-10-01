@@ -108,7 +108,7 @@ _CSP_POLICY = (
     "script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: https:; "
-    "media-src 'self' https:; "
+    "media-src 'self' https: blob:; "
     "connect-src 'self'; "
     "font-src 'self'; "
     "frame-ancestors 'none'; "
@@ -124,7 +124,7 @@ async def _security_headers(request: Request, call_next):
         cl = request.headers.get("content-length")
         if cl and cl.isdigit() and int(cl) > config.MAX_BODY_SIZE:
             return JSONResponse({"detail": "请求体过大"}, status_code=413)
-    # ── 浏览器门禁：所有 /api/ 接口强制校验 gate token ──
+    # ── 浏览器门禁：所有 /api/ 和 /static/ 路径强制校验 gate token ──
     # 仅精确豁免 gate 注册/心跳两个端点，其余 /api/gate/* 一律走校验
     path = request.url.path
     if path.startswith("/api/") and path not in ("/api/gate/register", "/api/gate/heartbeat"):
@@ -142,6 +142,12 @@ async def _security_headers(request: Request, call_next):
             _client_ip = request.client.host if request.client else "?"
             logger.warning("限速触发：IP=%s %s %s", _client_ip, request.method, path)
             return JSONResponse({"detail": "请求过于频繁，请稍后再试"}, status_code=429)
+    elif path.startswith("/static/"):
+        if not anti_devtools.validate_gate_token(request):
+            return JSONResponse({"detail": "Forbidden"}, status_code=403)
+    elif path.startswith("/gate/"):
+        # 门禁注册/心跳是自建专用端点，不进入普通页面门禁
+        pass
 
     response = await call_next(request)
     # CSP：禁止 connect-src 外联，废掉 XSS 窃取能力
@@ -165,7 +171,7 @@ app.include_router(listen_together.router)
 # ── 反 F12 脚本路由（固定路径，真实页面使用）──
 @app.get(anti_devtools.get_route_path(), response_class=Response)
 async def anti_devtools_js(request: Request):
-    enabled = not _is_authed(request)
+    enabled = config.ANTI_F12_ENABLED and not _is_authed(request)
     return Response(
         content=anti_devtools.get_js_content(enabled),
         media_type="application/javascript",
@@ -190,10 +196,13 @@ async def gate_script_route(token: str):
 async def gate_register(request: Request):
     if not _check_rate(request, bucket="gate_register"):
         raise HTTPException(429, "请求过于频繁，请稍后再试")
-    # 动态 cookie 名：真实名混入随机串加密后作为实际 cookie 名，由服务端直接 Set-Cookie，
-    # 客户端 JS 完全无感，验证时服务端解密 cookie 名即可识别
+    # 先清掉旧 token（服务端记录 + 浏览器 cookie）再写新 token：
+    # 动态 cookie 名每次不同，若只增不删会积累多个残留门禁 cookie，旧记录也残留在 _tokens
+    removed = anti_devtools.revoke_gate_tokens(request)
     token, cookie_name = anti_devtools.register_gate_token(request)
     resp = JSONResponse({"token": token})
+    for name in removed:
+        resp.delete_cookie(name, path="/")
     resp.set_cookie(
         cookie_name, token,
         max_age=config.GATE_COOKIE_MAX_AGE,
@@ -208,8 +217,19 @@ async def gate_heartbeat(request: Request):
     # 心跳限速：防止脚本批量保活 token（正常浏览器每 10s 一次 ≈ 6 次/分钟）
     if not _check_rate(request, max_req=config.HEARTBEAT_RATE_MAX, bucket="gate_heartbeat"):
         raise HTTPException(429, "请求过于频繁，请稍后再试")
-    ok = anti_devtools.heartbeat_gate_token(request)
-    return {"ok": ok}
+    pair = anti_devtools.heartbeat_gate_token(request)
+    resp = JSONResponse({"ok": pair is not None})
+    if pair:
+        cookie_name, token = pair
+        # 续浏览器 cookie（GATE_COOKIE_MAX_AGE=15s，心跳 10s 一次，
+        # 不刷新则浏览器 15s 后停止携带 cookie，心跳带不上 token → ok:false → 无限重注册）
+        resp.set_cookie(
+            cookie_name, token,
+            max_age=config.GATE_COOKIE_MAX_AGE,
+            samesite="lax",
+            secure=config.HTTPS or config.SSL,
+        )
+    return resp
 
 
 @app.api_route("/api/gate/kill-report", methods=["POST", "GET"])
@@ -370,7 +390,7 @@ async def index(request: Request):
     # 浏览器门禁：无有效 token 则返回挑战页
     if not anti_devtools.validate_gate_token(request):
         return anti_devtools.challenge_response(
-            anti_f12_enabled=not _is_authed(request), request=request
+            anti_f12_enabled=config.ANTI_F12_ENABLED and not _is_authed(request), request=request
         )
 
     logged_in = {k: v.logged_in for k, v in _sessions.items()}
@@ -388,7 +408,7 @@ async def login_page(request: Request):
     # 浏览器门禁：无有效 token 则返回挑战页
     if not anti_devtools.validate_gate_token(request):
         return anti_devtools.challenge_response(
-            anti_f12_enabled=not _is_authed(request), request=request
+            anti_f12_enabled=config.ANTI_F12_ENABLED and not _is_authed(request), request=request
         )
 
     # 启用密码保护且未验证时，先显示密码验证页
@@ -422,7 +442,7 @@ async def listen_together_page(request: Request):
     # 浏览器门禁：无有效 token 则返回挑战页（一起听歌接口同样受门禁保护）
     if not anti_devtools.validate_gate_token(request):
         return anti_devtools.challenge_response(
-            anti_f12_enabled=not _is_authed(request), request=request
+            anti_f12_enabled=config.ANTI_F12_ENABLED and not _is_authed(request), request=request
         )
     return templates.TemplateResponse("listen_together.html", {
         "request": request,
@@ -1078,6 +1098,14 @@ async def proxy_audio(request: Request, url: str = Query(...)):
             await resp.aclose()
             await client.aclose()
             raise HTTPException(500, "代理请求失败")
+        # 无 Range 请求却返回 206 = 上游只给了部分内容。
+        # 浏览器 <audio> 会按 Range 自动续取，但后台缓存用 fetch 不带 Range，
+        # 拿到残片会被当成完整文件写入 IndexedDB，下次播放必然解码失败。
+        # 直接拒绝，让客户端拿到 502 而不是一份不完整的数据。
+        if resp.status_code == 206 and not range_header:
+            await resp.aclose()
+            await client.aclose()
+            raise HTTPException(502, "上游返回部分内容（无 Range 请求收到 206）")
     except HTTPException:
         await client.aclose()
         raise
