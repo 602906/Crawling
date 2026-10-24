@@ -257,7 +257,11 @@ function pipRenderLyrics(data) {
 
     var html = '';
     for (var i = 0; i < data.length; i++) {
-        html += '<div class="pip-lyric-line" data-index="' + i + '" style="color:' + text2 + ';">' + _escHtml(data[i].text) + '</div>';
+        // 翻译行（偶数行原文+奇数行译文）加不同样式区分
+        var isTrans = (i % 2 === 1);
+        var style = 'color:' + text2 + ';';
+        if (isTrans) style += 'opacity:0.75;';
+        html += '<div class="pip-lyric-line" data-index="' + i + '" style="' + style + '">' + _escHtml(data[i].text) + '</div>';
     }
     listEl.innerHTML = html;
 }
@@ -277,13 +281,17 @@ function pipHighlight(index) {
     if (prev) {
         prev.classList.remove('active');
         prev.style.color = text2;
+        prev.style.opacity = '';
     }
 
     if (index >= 0) {
-        var line = listEl.querySelector('.pip-lyric-line[data-index="' + index + '"]');
+        // 有翻译时，原文行在 data-index = index * 2，译文行在 index * 2 + 1
+        var pipIdx = (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0) ? index * 2 : index;
+        var line = listEl.querySelector('.pip-lyric-line[data-index="' + pipIdx + '"]');
         if (line) {
             line.classList.add('active');
             line.style.color = accent;
+            line.style.opacity = '';
             var containerH = listEl.clientHeight;
             var lineTop = line.offsetTop;
             var lineH = line.offsetHeight;
@@ -297,8 +305,10 @@ function pipHighlight(index) {
 
 // 用当前歌词数据重建 PiP 内容
 function _rebuildPipLyrics() {
-    if (typeof lyricsData !== 'undefined' && lyricsData.length) {
-        pipRenderLyrics(lyricsData);
+    // 有翻译时用合并版（原文+译文交替），否则用原文
+    var displayData = (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0) ? lyricsTranslated : (typeof lyricsData !== 'undefined' ? lyricsData : []);
+    if (displayData.length) {
+        pipRenderLyrics(displayData);
         if (typeof currentLyricIndex !== 'undefined' && currentLyricIndex >= 0) {
             pipHighlight(currentLyricIndex);
         }
