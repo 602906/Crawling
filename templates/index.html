@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="/static/css/playlist.css">
 <link rel="stylesheet" href="/static/css/favorites.css">
 <link rel="stylesheet" href="/static/css/context-menu.css">
-<link rel="stylesheet" href="/static/css/playlists.css">
+<link rel="stylesheet" href="/static/css/playlist.sidebar.css">
+<link rel="stylesheet" href="/static/css/playlist.sidebar.history.css">
 <link rel="stylesheet" href="/static/css/equalizer.css">
 {% endblock %}
 
@@ -22,6 +23,19 @@
             </div>
         </div>
         <div class="playlist-sidebar-list" id="playlistSidebarList"></div>
+
+        <!-- 历史缓存条目：位于侧栏列表底部，点击展示所有缓存到主列表 -->
+        <div class="playlist-sidebar-item playlist-sidebar-history-entry" id="playlistSidebarHistoryEntry">
+            <div class="playlist-sidebar-item-cover playlist-sidebar-item-cover-ph">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:24px;height:24px;color:var(--text-secondary)">
+                    <path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                </svg>
+            </div>
+            <div class="playlist-sidebar-item-info">
+                <div class="playlist-sidebar-item-name">历史缓存</div>
+                <div class="playlist-sidebar-item-meta" id="playlistSidebarHistoryMeta">读取中…</div>
+            </div>
+        </div>
     </aside>
 
     <div class="home-main">
@@ -79,6 +93,7 @@
             <div class="lyrics-export-menu" id="lyricsExportMenu">
                 <div class="lyrics-export-item" onclick="copyLyricsText()">复制完整歌词</div>
                 <div class="lyrics-export-item" onclick="downloadLrcFile()">下载 LRC 歌词</div>
+                <div class="lyrics-export-item" id="lyricsExportTranslated" style="display:none;" onclick="downloadLrcTranslated()">下载 LRC 歌词(翻译)</div>
             </div>
         </div>
         <button class="lyrics-close" onclick="toggleLyrics()">&#10005;</button>
@@ -89,7 +104,7 @@
 </div>
 
 <!-- 面板开关按钮：独立于面板（fixed + 高 z-index），任何面板展开都盖不住；collapsed=面板收起时贴屏幕边缘 -->
-<div class="playlist-tab collapsed" id="playlistTab" onclick="togglePlaylistSidebar()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
+<div class="playlist-sidebar-tab collapsed" id="playlistSidebarTab" onclick="togglePlaylistSidebar()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></div>
 <div class="lyrics-tab collapsed" id="lyricsTab" onclick="toggleLyrics()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></div>
 
 <div class="playlist-panel" id="playlistPanel" style="display:none;">
@@ -182,30 +197,30 @@
     </div>
 </div>
 
-<div class="pl-import-overlay" id="plImportOverlay" style="display:none;" onclick="if(event.target===this)closeImportModal()">
-    <div class="pl-import-modal">
-        <div class="pl-import-header">
-            <span class="pl-import-title">导入歌单</span>
-            <button class="pl-import-close" onclick="closeImportModal()">&#10005;</button>
+<div class="playlist-sidebar-import-overlay" id="playlistSidebarImportOverlay" style="display:none;" onclick="if(event.target===this)closeImportModal()">
+    <div class="playlist-sidebar-import-modal">
+        <div class="playlist-sidebar-import-header">
+            <span class="playlist-sidebar-import-title">导入歌单</span>
+            <button class="playlist-sidebar-import-close" onclick="closeImportModal()">&#10005;</button>
         </div>
-        <div class="pl-import-body">
-            <div class="pl-import-field">
-                <label class="pl-import-label" for="plImportPlatform">平台</label>
-                <select id="plImportPlatform" class="pl-import-select">
+        <div class="playlist-sidebar-import-body">
+            <div class="playlist-sidebar-import-field">
+                <label class="playlist-sidebar-import-label" for="playlistSidebarImportPlatform">平台</label>
+                <select id="playlistSidebarImportPlatform" class="playlist-sidebar-import-select">
                     <option value="netease">网易云音乐</option>
                     <option value="kugou">酷狗音乐</option>
                 </select>
             </div>
-            <div class="pl-import-field">
-                <label class="pl-import-label" for="plImportRef">歌单链接或 ID</label>
-                <input type="text" id="plImportRef" class="pl-import-input"
+            <div class="playlist-sidebar-import-field">
+                <label class="playlist-sidebar-import-label" for="playlistSidebarImportRef">歌单链接或 ID</label>
+                <input type="text" id="playlistSidebarImportRef" class="playlist-sidebar-import-input"
                        placeholder="粘贴歌单链接或直接输入 ID"
                        onkeydown="if(event.key==='Enter')startImport()">
             </div>
-            <div class="pl-import-preview" id="plImportPreview" style="display:none;"></div>
-            <div class="pl-import-error" id="plImportError" style="display:none;"></div>
-            <div class="pl-import-actions">
-                <button class="btn btn-primary" id="plImportBtn" onclick="startImport()">导入</button>
+            <div class="playlist-sidebar-import-preview" id="playlistSidebarImportPreview" style="display:none;"></div>
+            <div class="playlist-sidebar-import-error" id="playlistSidebarImportError" style="display:none;"></div>
+            <div class="playlist-sidebar-import-actions">
+                <button class="btn btn-primary" id="playlistSidebarImportBtn" onclick="startImport()">导入</button>
                 <button class="btn" onclick="closeImportModal()">取消</button>
             </div>
         </div>
@@ -237,7 +252,8 @@
 <script src="/static/js/playlist.js"></script>
 <script src="/static/js/favorites.js"></script>
 <script src="/static/js/context-menu.js"></script>
-<script src="/static/js/playlists.js"></script>
+<script src="/static/js/playlist.sidebar.js"></script>
+<script src="/static/js/playlist.sidebar.history.js"></script>
 <script src="/static/js/equalizer.js"></script>
 {% endblock %}
 

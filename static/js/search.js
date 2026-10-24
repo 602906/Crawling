@@ -13,6 +13,8 @@ let currentSongs = [];
         const keyword = document.getElementById('searchInput').value.trim();
         if (!keyword) return;
         _showingFavorites = false;
+        // 服务器搜索：退出历史缓存视图
+        if (typeof window.closeHistoryCache === 'function') window.closeHistoryCache();
         hideMyPlaylistView();
         currentPage = page || 1;
 
@@ -46,7 +48,7 @@ let currentSongs = [];
         }
 
         list.innerHTML = songs.map((s, i) => `
-            <div class="song-item" data-index="${i}" oncontextmenu="showCtxMenu(event, ${i})">
+            <div class="song-item" data-index="${i}" ondblclick="playSong(${i})" oncontextmenu="showCtxMenu(event, ${i})">
                 <div class="song-index">${(currentPage - 1) * 20 + i + 1}</div>
                 <div class="song-cover-wrap">
                     ${s.cover ? `<img class="song-cover" src="${s.cover}" referrerpolicy="no-referrer" alt="" onerror="this.style.display='none'">` : '<div class="song-cover-placeholder"></div>'}

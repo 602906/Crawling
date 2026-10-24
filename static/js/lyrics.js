@@ -1,7 +1,9 @@
 let lyricsData = [];
+let lyricsTranslated = [];  // 翻译后的歌词数据
 let currentLyricIndex = -1;
 let lyricsVisible = false;
 let lyricsRaw = '';        // 原始 LRC 文本，供复制/下载导出
+let lyricsTranslatedRaw = ''; // 翻译后的 LRC 文本
 let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件名
 
     function parseLRC(text) {
@@ -25,39 +27,86 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         return parsed;
     }
 
+    // 播放一首歌时自动拉歌词（带本地 Blob 缓存，无歌词也缓存）
     async function fetchLyrics(song) {
         lyricsData = [];
+        lyricsTranslated = [];
         currentLyricIndex = -1;
         lyricsRaw = '';
+        lyricsTranslatedRaw = '';
         lyricsSong = null;
-        document.getElementById('lyricsExport').style.display = 'none';
         const content = document.getElementById('lyricsContent');
-        content.innerHTML = '<p class="lyrics-empty">加载歌词中...</p>';
+        const exportBtn = document.getElementById('lyricsExport');
+        if (exportBtn) exportBtn.style.display = 'none';
+        if (content) content.innerHTML = '<p class="lyrics-empty">加载中...</p>';
         document.getElementById('lyricsTitle').textContent = song.name;
 
         // 先设置 PiP 标题（即使歌词还没加载完也要更新）
         if (typeof pipSetTitle === 'function') pipSetTitle(song.name + ' - ' + song.artist);
 
+        const key = song.platform + ':' + song.id;
+
+        // ── 优先：使用本地缓存的歌词 Blob ──
+        if (typeof getCachedLyricsBlob === 'function') {
+            try {
+                const cached = await getCachedLyricsBlob(key);
+                if (cached && cached.blob instanceof Blob) {
+                    const text = await cached.blob.text();
+                    // 兼容旧格式（纯文本）和新格式（JSON: {lrc, translated}）
+                    let parsed;
+                    try { parsed = JSON.parse(text); } catch (_) { parsed = null; }
+                    if (parsed && parsed.lrc != null) {
+                        lyricsRaw = parsed.lrc;
+                        lyricsTranslatedRaw = parsed.translated || '';
+                    } else {
+                        // 旧格式：纯文本歌词，无翻译
+                        lyricsRaw = text;
+                        lyricsTranslatedRaw = '';
+                    }
+                    lyricsSong = song;
+                    lyricsData = parseLRC(lyricsRaw);
+                    lyricsTranslated = parseLRC(lyricsTranslatedRaw);
+                    if (exportBtn) exportBtn.style.display = lyricsData.length ? '' : 'none';
+                    _syncExportTranslatedVis();
+                    renderLyrics();
+                    return;
+                }
+            } catch (e) {}
+        }
+
+        // ── 回源：请求服务端，无论有无歌词都写入缓存 Blob ──
         const extra = encodeURIComponent(JSON.stringify(song.extra));
         const params = `extra=${extra}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}&duration=${song.duration || 0}`;
         try {
             const resp = await fetch(`/api/lyrics/${song.platform}/${song.id}?${params}`);
             const data = await resp.json();
-            if (data.lyrics) {
-                lyricsData = parseLRC(data.lyrics);
-                if (lyricsData.length) {
-                    lyricsRaw = data.lyrics;
-                    lyricsSong = song;
-                    document.getElementById('lyricsExport').style.display = '';
-                }
-                renderLyrics();
-            } else {
-                content.innerHTML = '<p class="lyrics-empty">暂无歌词</p>';
-                if (typeof pipRenderLyrics === 'function') pipRenderLyrics([]);
+            // 即使歌词为空也缓存，用空 blob 标记"已确认无歌词"
+            const rawText = (data && data.lyrics) ? data.lyrics : '';
+            const transText = (data && data.translated) ? data.translated : '';
+            if (typeof putCachedLyricsBlob === 'function') {
+                // 新格式：存 JSON {lrc, translated}，兼容旧纯文本解析
+                const cacheData = { lrc: rawText, translated: transText || undefined };
+                putCachedLyricsBlob(key, new Blob([JSON.stringify(cacheData)], { type: 'text/plain;charset=utf-8' }), song);
             }
+            lyricsRaw = rawText;
+            lyricsTranslatedRaw = transText;
+            lyricsSong = song;
+            lyricsData = parseLRC(rawText);
+            if (transText) {
+                lyricsTranslated = parseLRC(transText);
+            }
+            if (exportBtn) exportBtn.style.display = lyricsData.length ? '' : 'none';
+            _syncExportTranslatedVis();
+            renderLyrics();
         } catch (e) {
-            content.innerHTML = '<p class="lyrics-empty">歌词加载失败</p>';
+            if (content) content.innerHTML = '<p class="lyrics-empty">歌词加载失败</p>';
         }
+    }
+
+    // 仅当有翻译时，才显示"下载 LRC 歌词(翻译)"选项
+    function _syncExportTranslatedVis() {
+        const el = document.getElementById('lyricsExportTranslated');
+        if (el) el.style.display = lyricsTranslatedRaw ? '' : 'none';
     }
 
     // === 歌词导出：复制纯文本 / 下载 LRC 文件 ===
@@ -113,7 +162,8 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
     function downloadLrcFile() {
         _closeLyricsExportMenu();
         if (!lyricsRaw) return;
-        const name = lyricsSong ? `${lyricsSong.name} - ${lyricsSong.artist}` : '歌词';
+        // 与音频下载保持一致：歌手 - 歌名.lrc
+        const name = lyricsSong ? `${lyricsSong.artist} - ${lyricsSong.name}` : '歌词';
         // 去掉文件名非法字符
         const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
         const blob = new Blob([lyricsRaw], { type: 'text/plain;charset=utf-8' });
@@ -128,6 +178,25 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         showToast('LRC 歌词已下载');
     }
 
+    function downloadLrcTranslated() {
+        _closeLyricsExportMenu();
+        if (!lyricsTranslatedRaw) return;
+        // 与音频下载保持一致：歌手 - 歌名(翻译).lrc
+        const name = lyricsSong ? `${lyricsSong.artist} - ${lyricsSong.name}` : '歌词';
+        // 去掉文件名非法字符
+        const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
+        const blob = new Blob([lyricsTranslatedRaw], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeName}（翻译）.lrc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('LRC 歌词(翻译)已下载');
+    }
+
     function renderLyrics() {
         const content = document.getElementById('lyricsContent');
         if (!lyricsData.length) {
@@ -135,12 +204,15 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
             if (typeof pipRenderLyrics === 'function') pipRenderLyrics([]);
             return;
         }
-        content.innerHTML = lyricsData.map((line, i) =>
+        // translated 是服务端合并版（原文+译文交替），直接用它渲染；无翻译时用原歌词
+        const displayData = lyricsTranslated.length > 0 ? lyricsTranslated : lyricsData;
+        content.innerHTML = displayData.map((line, i) =>
             `<div class="lyric-line" data-index="${i}" onclick="seekToLyric(${line.time})">${escHtml(line.text)}</div>`
         ).join('');
-        if (typeof pipRenderLyrics === 'function') pipRenderLyrics(lyricsData);
+        if (typeof pipRenderLyrics === 'function') pipRenderLyrics(displayData);
     }
 
+    let _lastDisplayData = [];
     function updateLyricsHighlight(currentTime) {
         if (!lyricsData.length) return;
         let idx = -1;
@@ -161,7 +233,9 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         if (prev) prev.classList.remove('active');
 
         if (idx >= 0) {
-            const activeLine = content.querySelector(`.lyric-line[data-index="${idx}"]`);
+            // displayData 是原文+译文交替的合并版，每首曲原文在原数组的 idx*2 位置
+            const pairedIdx = lyricsTranslated.length > 0 ? idx * 2 : idx;
+            const activeLine = content.querySelector(`.lyric-line[data-index="${pairedIdx}"]`);
             if (activeLine) {
                 activeLine.classList.add('active');
                 const containerHeight = content.clientHeight;

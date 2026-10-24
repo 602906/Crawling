@@ -1,4 +1,4 @@
-    // === 歌单（localStorage 存储 + 平台导入 + 分享链接）===
+﻿    // === 歌单（localStorage 存储 + 平台导入 + 分享链接）===
     // 分享链接格式：?list=kugou:hash1,hash2;netease:123,456
     // （仅平台代码 + ID 列表，分号分隔平台组、冒号分隔平台与 ID、逗号分隔 ID）
     const PL_STORAGE_KEY = 'mc_playlists';
@@ -176,25 +176,25 @@
 
     function openImportModal() {
         _importState = null;
-        document.getElementById('plImportPreview').style.display = 'none';
-        document.getElementById('plImportError').style.display = 'none';
-        const btn = document.getElementById('plImportBtn');
+        document.getElementById('playlistSidebarImportPreview').style.display = 'none';
+        document.getElementById('playlistSidebarImportError').style.display = 'none';
+        const btn = document.getElementById('playlistSidebarImportBtn');
         btn.textContent = '导入';
         btn.disabled = false;
-        document.getElementById('plImportRef').value = '';
-        document.getElementById('plImportOverlay').style.display = 'flex';
-        setTimeout(() => document.getElementById('plImportRef').focus(), 50);
+        document.getElementById('playlistSidebarImportRef').value = '';
+        document.getElementById('playlistSidebarImportOverlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('playlistSidebarImportRef').focus(), 50);
     }
 
     function closeImportModal() {
-        document.getElementById('plImportOverlay').style.display = 'none';
+        document.getElementById('playlistSidebarImportOverlay').style.display = 'none';
     }
 
     async function startImport() {
-        const platform = document.getElementById('plImportPlatform').value;
-        const ref = document.getElementById('plImportRef').value.trim();
-        const errEl = document.getElementById('plImportError');
-        const btn = document.getElementById('plImportBtn');
+        const platform = document.getElementById('playlistSidebarImportPlatform').value;
+        const ref = document.getElementById('playlistSidebarImportRef').value.trim();
+        const errEl = document.getElementById('playlistSidebarImportError');
+        const btn = document.getElementById('playlistSidebarImportBtn');
         errEl.style.display = 'none';
         if (!ref) {
             errEl.textContent = '请输入歌单链接或 ID';
@@ -246,13 +246,13 @@
             if (!r.ok) throw new Error(d.detail || `导入失败 (HTTP ${r.status})`);
             if (!d.songs || !d.songs.length) throw new Error('歌单为空');
             _importState = { platform, ref, name: d.name, cover: d.cover, creator: d.creator, total: d.total, songs: d.songs };
-            const preview = document.getElementById('plImportPreview');
+            const preview = document.getElementById('playlistSidebarImportPreview');
             preview.style.display = 'flex';
             preview.innerHTML = `
                 ${d.cover ? `<img src="${d.cover}" referrerpolicy="no-referrer" alt="" onerror="this.style.display='none'">` : ''}
-                <div class="pl-import-preview-info">
-                    <div class="pl-import-preview-name">${escHtml(d.name)}</div>
-                    <div class="pl-import-preview-meta">${escHtml(d.creator || '')}${d.creator ? ' · ' : ''}共 ${d.total} 首</div>
+                <div class="playlist-sidebar-import-preview-info">
+                    <div class="playlist-sidebar-import-preview-name">${escHtml(d.name)}</div>
+                    <div class="playlist-sidebar-import-preview-meta">${escHtml(d.creator || '')}${d.creator ? ' · ' : ''}共 ${d.total} 首</div>
                 </div>
             `;
             btn.textContent = d.total > d.songs.length ? `导入全部 ${d.total} 首` : '确认导入';
@@ -439,7 +439,7 @@
     // ── 侧栏开关（镜像歌词面板：左侧固定悬浮 + tab 滑出）──
     function togglePlaylistSidebar() {
         const panel = document.getElementById('playlistSidebar');
-        const tab = document.getElementById('playlistTab');
+        const tab = document.getElementById('playlistSidebarTab');
         const hidden = panel.classList.toggle('hidden');
         tab.classList.toggle('collapsed', hidden);
         tab.innerHTML = hidden

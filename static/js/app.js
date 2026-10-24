@@ -63,26 +63,44 @@ document.addEventListener('click', function (e) {
     var keep = e.target.closest(
         '#playlistPanel, #favoritesPanel, .eq-panel, ' +
         '#playlistToggleBtn, #favoritesToggleBtn, #eqBtn, .settings-eq, ' +
-        '.ctx-menu, #infoOverlay, #plImportOverlay, .lyrics-panel'
+        '.ctx-menu, #infoOverlay, #playlistSidebarImportOverlay, .lyrics-panel'
     );
     if (keep) return;
     closeAllSidePanels();
 });
 
+// 单例连接：只开一次并复用。反复 open 新连接会让旧连接阻塞 v1→v2 升级，
+// 导致 lyrics 对象仓建不出来、歌词缓存永远读不到。
+let _cacheDbPromise = null;
 function _openAudioCache() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('MusicCatchAudioCache', 1);
-        req.onupgradeneeded = () => { req.result.createObjectStore('audio'); };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+    if (_cacheDbPromise) return _cacheDbPromise;
+    _cacheDbPromise = new Promise((resolve, reject) => {
+        // v2: 新增 lyrics 对象仓，缓存歌词文本
+        const req = indexedDB.open('MusicCatchAudioCache', 2);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('audio')) db.createObjectStore('audio');
+            if (!db.objectStoreNames.contains('lyrics')) db.createObjectStore('lyrics');
+        };
+        req.onsuccess = () => {
+            const db = req.result;
+            // 其他标签页升级时，关闭本连接避免阻塞
+            db.onversionchange = () => { db.close(); _cacheDbPromise = null; };
+            resolve(db);
+        };
+        req.onerror = () => { _cacheDbPromise = null; reject(req.error); };
+        req.onblocked = () => { console.warn('[cache] 数据库升级被旧连接阻塞'); };
     });
+    return _cacheDbPromise;
 }
 
 async function clearAudioCache() {
     try {
         const db = await _openAudioCache();
-        const tx = db.transaction('audio', 'readwrite');
+        const hasLyrics = db.objectStoreNames.contains('lyrics');
+        const tx = db.transaction(hasLyrics ? ['audio', 'lyrics'] : ['audio'], 'readwrite');
         tx.objectStore('audio').clear();
+        if (hasLyrics) tx.objectStore('lyrics').clear();
         await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
         if (typeof showToast === 'function') showToast('音频缓存已清除');
         else alert('音频缓存已清除');
@@ -91,6 +109,50 @@ async function clearAudioCache() {
         else alert('清除缓存失败: ' + e.message);
     }
 }
+
+// === Lyrics Cache ===
+    // 读取歌词缓存。返回 { blob, ts, meta } 或 null。
+    // 注意语义：记录存在 = 已经向服务端问过；blob 内容为空 = 服务端确认确实没歌词。
+    async function getCachedLyricsBlob(key) {
+        try {
+            if (!key) return null;
+            const db = await _openAudioCache();
+            if (!db.objectStoreNames.contains('lyrics')) return null;
+            return new Promise((resolve) => {
+                const tx = db.transaction('lyrics', 'readonly');
+                const req = tx.objectStore('lyrics').get(key);
+                req.onsuccess = () => {
+                    const rec = req.result;
+                    resolve(rec && rec.blob instanceof Blob ? rec : null);
+                };
+                req.onerror = () => resolve(null);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // 写入歌词 Blob：内容为空也写，用作"已确认无歌词"的标记，避免每次都打接口
+    async function putCachedLyricsBlob(key, blob, meta) {
+        try {
+            if (!key) return;
+            const db = await _openAudioCache();
+            if (!db.objectStoreNames.contains('lyrics')) return;
+            const tx = db.transaction('lyrics', 'readwrite');
+            tx.objectStore('lyrics').put({ blob, ts: Date.now(), meta: meta || null }, key);
+            await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
+        } catch (e) {}
+    }
+
+    async function deleteCachedLyrics(key) {
+        try {
+            const db = await _openAudioCache();
+            if (!db.objectStoreNames.contains('lyrics')) return;
+            const tx = db.transaction('lyrics', 'readwrite');
+            tx.objectStore('lyrics').delete(key);
+            await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
+        } catch (e) {}
+    }
 
 // === Audio Cache ===
     // 校验缓存 blob 是否为合法音频：先验文件头魔数，排除错误 JSON/HTML/截断数据
@@ -135,7 +197,7 @@ async function clearAudioCache() {
         }
     }
 
-    async function putCachedAudio(key, blob, totalLen) {
+    async function putCachedAudio(key, blob, totalLen, meta) {
         try {
             const db = await _openAudioCache();
             const tx = db.transaction('audio', 'readwrite');
@@ -162,16 +224,22 @@ async function clearAudioCache() {
                 };
                 cursorReq.onerror = () => resolve();
             });
-            store.put({ blob, ts: Date.now(), size: blob.size, total: totalLen || 0 }, key);
+            store.put({ blob, ts: Date.now(), size: blob.size, total: totalLen || 0, meta: meta || null }, key);
             await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
+            if (typeof window.refreshHistoryCache === 'function') {
+                try { window.refreshHistoryCache(); } catch(e) {}
+            }
         } catch (e) {}
     }
 
     async function deleteCachedAudio(key) {
         try {
             const db = await _openAudioCache();
-            const tx = db.transaction('audio', 'readwrite');
+            // 同步删除该歌曲的歌词缓存
+            const stores = db.objectStoreNames.contains('lyrics') ? ['audio', 'lyrics'] : ['audio'];
+            const tx = db.transaction(stores, 'readwrite');
             tx.objectStore('audio').delete(key);
+            if (db.objectStoreNames.contains('lyrics')) tx.objectStore('lyrics').delete(key);
             await new Promise((resolve) => { tx.oncomplete = resolve; tx.onerror = resolve; });
         } catch (e) {}
     }

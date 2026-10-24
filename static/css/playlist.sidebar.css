@@ -18,8 +18,8 @@
     transform: translateX(-100%);
 }
 
-/* 开关 tab：独立于面板的 fixed 按钮（面板右缘外；展开/收起位置不变，任何面板盖不住） */
-.playlist-tab {
+/* 侧栏开关 tab：独立于面板的 fixed 按钮（面板右缘外；展开/收起位置不变，任何面板盖不住） */
+.playlist-sidebar-tab {
     position: fixed;
     left: 280px;
     top: calc(50vh - 8px);
@@ -40,15 +40,15 @@
     user-select: none;
     z-index: 160;
 }
-.playlist-tab:hover {
+.playlist-sidebar-tab:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
 }
 /* 面板收起时：按钮贴屏幕左缘 */
-.playlist-tab.collapsed {
+.playlist-sidebar-tab.collapsed {
     left: 0;
 }
-.playlist-tab svg,
+.playlist-sidebar-tab svg,
 .playlist-sidebar-btn svg,
 .playlist-sidebar-op svg {
     width: 1em;
@@ -91,9 +91,10 @@
 }
 
 .playlist-sidebar-list {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     padding: 6px 0;
+    min-height: 0;              /* 允许在 flex 容器内收缩，给底部历史缓存区留出空间 */
 }
 
 .playlist-sidebar-item {
@@ -129,6 +130,27 @@
 }
 .playlist-sidebar-item-cover-ph {
     background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 历史缓存条目：固定在歌单列表下方，不随列表滚动 */
+.playlist-sidebar-history-entry {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 4px;
+    align-items: center;
+}
+
+/* 不再高亮激活状态，避免变色并点不动 */
+.playlist-sidebar-history-entry.active {
+    background: transparent;
+}
+.playlist-sidebar-history-entry.active .playlist-sidebar-item-name {
+    color: inherit;
+    font-weight: 500;
 }
 
 .playlist-sidebar-item-info {
@@ -194,7 +216,7 @@
 }
 
 /* ── 导入弹窗 ── */
-.pl-import-overlay {
+.playlist-sidebar-import-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
@@ -204,7 +226,7 @@
     z-index: 300;
     animation: fadeIn 0.2s;
 }
-.pl-import-modal {
+.playlist-sidebar-import-modal {
     width: 420px;
     max-width: calc(100vw - 32px);
     background: var(--bg-secondary);
@@ -213,19 +235,19 @@
     overflow: hidden;
     box-shadow: 0 8px 32px var(--shadow);
 }
-.pl-import-header {
+.playlist-sidebar-import-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
 }
-.pl-import-title {
+.playlist-sidebar-import-title {
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
 }
-.pl-import-close {
+.playlist-sidebar-import-close {
     background: transparent;
     border: none;
     color: var(--text-secondary);
@@ -234,27 +256,27 @@
     padding: 4px 8px;
     border-radius: 4px;
 }
-.pl-import-close:hover {
+.playlist-sidebar-import-close:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
 }
-.pl-import-body {
+.playlist-sidebar-import-body {
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-.pl-import-field {
+.playlist-sidebar-import-field {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
-.pl-import-label {
+.playlist-sidebar-import-label {
     font-size: 12px;
     color: var(--text-secondary);
 }
-.pl-import-select,
-.pl-import-input {
+.playlist-sidebar-import-select,
+.playlist-sidebar-import-input {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -264,12 +286,12 @@
     width: 100%;
     box-sizing: border-box;
 }
-.pl-import-select:focus,
-.pl-import-input:focus {
+.playlist-sidebar-import-select:focus,
+.playlist-sidebar-import-input:focus {
     outline: none;
     border-color: var(--accent);
 }
-.pl-import-preview {
+.playlist-sidebar-import-preview {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -278,18 +300,18 @@
     border: 1px solid var(--border);
     border-radius: 6px;
 }
-.pl-import-preview img {
+.playlist-sidebar-import-preview img {
     width: 44px;
     height: 44px;
     border-radius: 6px;
     object-fit: cover;
     flex-shrink: 0;
 }
-.pl-import-preview-info {
+.playlist-sidebar-import-preview-info {
     flex: 1;
     min-width: 0;
 }
-.pl-import-preview-name {
+.playlist-sidebar-import-preview-name {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
@@ -297,12 +319,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.pl-import-preview-meta {
+.playlist-sidebar-import-preview-meta {
     font-size: 12px;
     color: var(--text-secondary);
     margin-top: 2px;
 }
-.pl-import-error {
+.playlist-sidebar-import-error {
     font-size: 13px;
     color: var(--error);
     padding: 8px 10px;
@@ -310,7 +332,7 @@
     border: 1px solid rgba(239, 68, 68, 0.3);
     border-radius: 6px;
 }
-.pl-import-actions {
+.playlist-sidebar-import-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -329,8 +351,8 @@
         left: -100%;
     }
     /* 开关按钮：固定左下角，展开/收起位置不变（与右侧歌词按钮不重叠） */
-    .playlist-tab.collapsed,
-    .playlist-tab {
+    .playlist-sidebar-tab.collapsed,
+    .playlist-sidebar-tab {
         position: fixed;
         left: 12px;
         bottom: 84px;

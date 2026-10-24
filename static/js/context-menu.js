@@ -165,10 +165,29 @@
         if (_showingFavorites) showFavorites();
     }
 
-    function ctxDownload(quality) {
-        hideContextMenu();
-        if (!_ctxSong) return;
-        const s = _ctxSong;
+    // 从 Blob 触发浏览器下载，文件名沿用服务端格式：歌手 - 歌名.ext
+    function _downloadBlob(blob, artist, name) {
+        var ext = '.mp3';
+        try {
+            var buf = new Uint8Array(blob.slice(0, 4).arrayBuffer());
+            if (buf[0] === 0x66 && buf[1] === 0x4c && buf[2] === 0x61 && buf[3] === 0x43) ext = '.flac';
+            else if (buf[0] === 0x4f && buf[1] === 0x67 && buf[2] === 0x67 && buf[3] === 0x53) ext = '.ogg';
+            else if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x44) ext = '.wav';
+        } catch (e) {}
+        var filename = ((artist || 'unknown') + ' - ' + (name || 'unknown') + ext)
+            .replace(/[\\/:*?"<>|]/g, '');
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    }
+
+    // 原始服务器下载逻辑
+    function _downloadServer(s, quality) {
         const extra = encodeURIComponent(JSON.stringify(s.extra));
         let params = `extra=${extra}&name=${encodeURIComponent(s.name)}&artist=${encodeURIComponent(s.artist)}&quality=${quality}`;
         const url = `/api/download/${s.platform}/${s.id}?${params}`;
@@ -194,6 +213,40 @@
         } else {
             doDownload();
         }
+    }
+
+    // 音质等级比较：lossless > 320 > 128
+    function _qualityRank(q) {
+        if (q === 'lossless') return 3;
+        if (q === '320') return 2;
+        if (q === '128') return 1;
+        return 0;
+    }
+
+    function ctxDownload(quality) {
+        hideContextMenu();
+        if (!_ctxSong) return;
+        const s = _ctxSong;
+        const q = quality || '128';
+        const cacheKey = s.platform + ':' + s.id;
+        // 已缓存且音质不低于本次请求 → 直接从 IndexedDB 下载（文件名格式与服务端一致）
+        if (typeof getCachedAudio === 'function' && typeof isValidMediaBlob === 'function') {
+            getCachedAudio(cacheKey).then(function (cached) {
+                if (!cached || !cached.blob) { _downloadServer(s, q); return; }
+                var cachedQuality = (cached.meta && cached.meta.quality) || '128';
+                if (_qualityRank(cachedQuality) < _qualityRank(q)) {
+                    showToast('缓存音质仅 ' + cachedQuality + '，改用服务器下载 ' + q);
+                    _downloadServer(s, q);
+                    return;
+                }
+                isValidMediaBlob(cached.blob).then(function (ok) {
+                    if (!ok) { _downloadServer(s, q); return; }
+                    _downloadBlob(cached.blob, s.artist, s.name);
+                }).catch(function () { _downloadServer(s, q); });
+            }).catch(function () { _downloadServer(s, q); });
+            return;
+        }
+        _downloadServer(s, q);
     }
 
     async function ctxAnalyze() {

@@ -94,6 +94,32 @@ let _pendingSeek = 0;
 
         const extra = encodeURIComponent(JSON.stringify(song.extra));
         const cacheKey = `${song.platform}:${song.id}`;
+
+        // ── 1) 优先：本地音频缓存命中 → 直接用缓存文件播放，不再向服务器请求解析 URL ──
+        // 视频流不缓存 blob，因此能命中 getCachedAudio 的必然是音频，无需 /api/play
+        let cached = await getCachedAudio(cacheKey);
+        if (token !== _loadToken) return;
+        if (cached && !(await isValidMediaBlob(cached.blob))) {
+            // 旧版本可能缓存了错误页/损坏数据，清掉后走在线播放
+            deleteCachedAudio(cacheKey);
+            cached = null;
+        }
+        if (cached && cached.total && cached.blob.size < cached.total) {
+            // 下载中断写入的截断缓存：播放必然中断，清掉后走在线播放
+            deleteCachedAudio(cacheKey);
+            cached = null;
+        }
+        if (cached) {
+            // 命中缓存：不请求服务器，直接用缓存 blob 播放。
+            // proxyUrl 此刻未知，留待解码失败回退在线流时再现场解析（见 _handleMediaError）
+            _cacheFallback = { key: cacheKey, token, song: song };
+            _setSrc(currentPlayer, URL.createObjectURL(cached.blob), true);
+            await _safePlay(currentPlayer, token);
+            fetchLyrics(song);
+            return;
+        }
+
+        // ── 2) 缓存未命中 → 向服务器获取播放地址 ──
         try {
             const resp = await fetch(`/api/play/${song.platform}/${song.id}?extra=${extra}`);
             const data = await resp.json();
@@ -115,38 +141,15 @@ let _pendingSeek = 0;
             const proxyUrl = `/api/proxy?url=${encodeURIComponent(data.url)}`;
             _onlineUrl = proxyUrl;
 
-            // 仅音频走 IndexedDB 缓存（视频流不缓存）
-            let cached = null;
-            if (!isVideo) {
-                cached = await getCachedAudio(cacheKey);
-                if (token !== _loadToken) return;
-                if (cached && !(await isValidMediaBlob(cached.blob))) {
-                    // 旧版本可能缓存了错误页/损坏数据，清掉后走在线播放
-                    deleteCachedAudio(cacheKey);
-                    cached = null;
-                }
-                if (cached && cached.total && cached.blob.size < cached.total) {
-                    // 下载中断写入的截断缓存：播放必然中断，清掉后走在线播放
-                    deleteCachedAudio(cacheKey);
-                    cached = null;
-                }
-            }
-
-            if (cached) {
-                // 记录回退信息：若 blob 解码失败则删缓存改用在线流
-                _cacheFallback = { key: cacheKey, proxyUrl, token };
-                _setSrc(currentPlayer, URL.createObjectURL(cached.blob), true);
-            } else {
-                // 直接使用代理
-                _setSrc(currentPlayer, proxyUrl, false);
-            }
+            // 未命中缓存：直接使用代理在线流播放
+            _setSrc(currentPlayer, proxyUrl, false);
 
             await _safePlay(currentPlayer, token);
             fetchLyrics(song);
 
-            if (!cached && !isVideo) {
+            if (!isVideo) {
                 _bgCacheAbort = new AbortController();
-                _bgCacheAudio(cacheKey, proxyUrl, _bgCacheAbort.signal);
+                _bgCacheAudio(cacheKey, proxyUrl, _bgCacheAbort.signal, song);
             }
         } catch (e) {
             if (token === _loadToken) showToast('播放出错: ' + e.message);
@@ -208,6 +211,19 @@ let _pendingSeek = 0;
         }
     }
 
+    // 现场解析在线播放地址：调用 /api/play 拿 url 并拼成代理地址（供缓存命中后解码失败回退用）
+    async function _resolvePlayUrl(song) {
+        try {
+            const extra = encodeURIComponent(JSON.stringify(song.extra));
+            const resp = await fetch(`/api/play/${song.platform}/${song.id}?extra=${extra}`);
+            const data = await resp.json();
+            if (!data.url) return null;
+            return `/api/proxy?url=${encodeURIComponent(data.url)}`;
+        } catch (e) {
+            return null;
+        }
+    }
+
     // 缓存 blob 播放失败 -> 删除坏缓存并回退到在线流
     function _handleMediaError(player) {
         const fb = _cacheFallback;
@@ -221,8 +237,20 @@ let _pendingSeek = 0;
         // -> 在线播放成功又触发 _bgCacheAudio 重新写入同样残片 -> 下次再坏"的循环
         _cachingKeys.add(fb.key);
         showToast('缓存已损坏，改用在线播放');
-        _setSrc(player, fb.proxyUrl + '&retry=' + Date.now(), false);
-        _safePlay(player, fb.token);
+
+        if (fb.proxyUrl) {
+            // 常规回退：播放地址已知，直接切在线流
+            _setSrc(player, fb.proxyUrl + '&retry=' + Date.now(), false);
+            _safePlay(player, fb.token);
+        } else if (fb.song) {
+            // 缓存命中播放、当时未请求地址：现在才解析在线地址并回退
+            _resolvePlayUrl(fb.song).then(function (proxyUrl) {
+                if (!proxyUrl || fb.token !== _loadToken || player !== currentPlayer) return;
+                _onlineUrl = proxyUrl;
+                _setSrc(player, proxyUrl + '&retry=' + Date.now(), false);
+                _safePlay(player, fb.token);
+            }).catch(function () {});
+        }
     }
     audio.addEventListener('error', function () { _handleMediaError(this); });
     video.addEventListener('error', function () { _handleMediaError(this); });
@@ -308,7 +336,45 @@ let _pendingSeek = 0;
     video.addEventListener('playing', () => { _retryCount = 0; });
 
     const _cachingKeys = new Set();
-    async function _bgCacheAudio(key, proxyUrl, signal) {
+
+    // 推断实际音质：FLAC 视为无损；MP3 读帧头比特率；其余按体积粗略估算
+    async function _detectCachedQuality(blob) {
+        try {
+            const head = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
+            // fLaC → 无损
+            if (head[0] === 0x66 && head[1] === 0x4c && head[2] === 0x61 && head[3] === 0x43) return 'lossless';
+            // 找第一个 MP3 同步字，跳过 ID3v2 标签
+            let i = 0;
+            if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) {
+                const tagSize = ((head[6] & 0x7f) << 21) | ((head[7] & 0x7f) << 14) |
+                                ((head[8] & 0x7f) << 7) | (head[9] & 0x7f);
+                i = 10 + tagSize;
+            }
+            for (; i + 4 < head.length; i++) {
+                if (head[i] !== 0xff || (head[i + 1] & 0xe0) !== 0xe0) continue;
+                const b2 = head[i + 1], b3 = head[i + 2];
+                // 跳过单声道/立体声等无效层
+                const layerBits = (b2 >> 1) & 0x03;
+                if (layerBits === 0) continue;
+                const bitrateIdx = (b3 >> 4) & 0x0f;
+                const BITRATES = {
+                    '11': [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],  // MPEG1 Layer3
+                    '01': [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],  // MPEG2 Layer3
+                };
+                const family = (b2 >> 3) & 0x03;   // 3 = MPEG1, 2 = MPEG2
+                const table = family === 3 ? BITRATES['11'] : BITRATES['01'];
+                const br = table[bitrateIdx] || 0;
+                if (br >= 320) return '320';
+                if (br >= 128) return '128';
+                return br > 0 ? '128' : '';
+            }
+            // 非 MP3/FLAC：按体积粗估
+            if (blob.size > 5 * 1024 * 1024) return '320';
+            return '128';
+        } catch (e) { return '128'; }
+    }
+
+    async function _bgCacheAudio(key, proxyUrl, signal, song) {
         if (_cachingKeys.has(key)) return;
         _cachingKeys.add(key);
         try {
@@ -341,7 +407,11 @@ let _pendingSeek = 0;
                 else if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) fixedType = 'audio/mp4'; // ftyp
                 if (fixedType) blob = new Blob([blob], { type: fixedType });
             }
-            await putCachedAudio(key, blob, len ? Number(len) : blob.size);
+            // 保留完整 song 信息（名称/歌手/封面/时长，历史缓存列表要用），
+            // 额外附加推断出的音质，供下载时匹配品质
+            const quality = await _detectCachedQuality(blob);
+            const meta = Object.assign({}, song, { quality: quality });
+            await putCachedAudio(key, blob, len ? Number(len) : blob.size, meta);
         } catch (e) {
         } finally {
             _cachingKeys.delete(key);

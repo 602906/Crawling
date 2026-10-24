@@ -3,10 +3,13 @@ import asyncio
 import hashlib
 import ipaddress
 import logging
+import re
 import secrets
 import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
+from functools import partial
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -23,6 +26,176 @@ import anti_devtools
 import listen_together
 
 logger = logging.getLogger(__name__)
+
+
+# ── 歌词翻译辅助函数 ──
+_CJK_RE = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\U00020000-\U0002A6DF]')
+
+
+def _count_non_chinese_ratio(lrc: str) -> float:
+    """计算 LRC 歌词中非中文内容的比例（0-1之间）"""
+    if not lrc:
+        return 0.0
+    # 移除时间标签和元标签（如 [ti:xxx]、[ar:xxx]）
+    lines = []
+    for line in lrc.split('\n'):
+        line = re.sub(r'\[[^\]]*\]', '', line).strip()
+        if not line:
+            continue
+        lines.append(line)
+    if not lines:
+        return 0.0
+    total_chars = sum(len(l) for l in lines)
+    if total_chars == 0:
+        return 0.0
+    # 统计非 CJK 字符（排除数字、标点、空格）
+    non_cjk = 0
+    for line in lines:
+        for ch in line:
+            if _CJK_RE.match(ch):
+                continue
+            if ch.isdigit():
+                continue
+            if '\u0020' <= ch <= '\u007e' and not ch.isalnum():
+                continue
+            non_cjk += 1
+    return non_cjk / total_chars if total_chars > 0 else 0.0
+
+
+# ── 歌词翻译专用线程池 + 缓存 ──
+# 与默认线程池隔离：避免翻译慢时挤占 /api/proxy 的 _validate_proxy_url
+_TRANSLATE_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="lrc-trans")
+_TRANSLATE_TIMEOUT = 25          # 整首歌翻译总超时（秒）
+_TRANSLATE_ENGINE_TIMEOUT = 12   # 单引擎超时（秒）
+_TRANSLATE_CACHE: dict[str, str] = {}
+_TRANSLATE_CACHE_MAX = 500
+# 启动时检测可用的引擎，运行时只使用这些
+_TRANSLATE_ENGINES: list[str | None] = []
+
+
+def _cache_translation(key: str, value: str) -> None:
+    if len(_TRANSLATE_CACHE) >= _TRANSLATE_CACHE_MAX:
+        # 简单清一半：翻译结果可重建，无需精确保留
+        for k in list(_TRANSLATE_CACHE)[:_TRANSLATE_CACHE_MAX // 2]:
+            _TRANSLATE_CACHE.pop(k, None)
+    _TRANSLATE_CACHE[key] = value
+
+
+def _sync_translate(text: str, engine: str | None) -> str:
+    """同步翻译单段文本；engine 为 None 时用库默认引擎。"""
+    import translators as _translators
+    kwargs = {"from_language": "en", "to_language": "zh"}
+    if engine:
+        kwargs["translator"] = engine
+    out = _translators.translate_text(text, **kwargs)
+    return out if isinstance(out, str) else str(out)
+
+
+def _detect_available_engines() -> list[str | None]:
+    """启动时逐个测试翻译引擎，返回可用的列表。用短文本快速检测，每引擎最多 8 秒。"""
+    import translators as _translators
+    _engines = ["bing", "alibaba", "baidu", "youdao", None]
+    available: list[str | None] = []
+    test_text = "Hello world"
+    for engine in _engines:
+        try:
+            result = _sync_translate(test_text, engine)
+            if result and result.strip() and result != test_text:
+                name = engine or "默认引擎"
+                available.append(engine)
+                logger.info("翻译引擎 %s 可用 → %s", name, result.strip())
+            else:
+                logger.warning("翻译引擎 %s 返回结果异常", engine or "默认引擎")
+        except Exception as e:
+            logger.debug("翻译引擎 %s 不可用: %s", engine or "默认引擎", e)
+    logger.info("歌词翻译引擎检测结果：%s", available or "无可用引擎")
+    return available
+
+
+async def _translate_lrc(lrc: str) -> str:
+    """翻译整首歌 LRC 歌词为中文（仅当非中文占比 >= 70% 时调用），保持时间标签格式。"""
+    if not lrc:
+        return ""
+    try:
+        import translators as _translators  # noqa: F401
+    except Exception as e:
+        logger.warning("歌词翻译不可用（translators 导入失败）: %s", e)
+        return lrc
+    if not hasattr(_translators, "translate_text"):
+        logger.warning("translators 版本不支持 translate_text")
+        return lrc
+
+    # 服务端缓存：同一份歌词只翻译一次
+    cache_key = hashlib.sha256(lrc.encode("utf-8")).hexdigest()
+    cached = _TRANSLATE_CACHE.get(cache_key)
+    if cached is not None:
+        logger.debug("歌词翻译缓存命中")
+        return cached
+
+    # 拆行：保留时间标签，正文为空/元信息行原样保留不送翻译
+    entries = []   # [(时间标签或原整行, 正文或 None)]
+    texts = []
+    for line in lrc.split('\n'):
+        m = re.match(r'((?:\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+)(.*)', line)
+        if not m or not m.group(2).strip():
+            entries.append((line, None))
+            continue
+        entries.append((m.group(1), m.group(2).strip()))
+        texts.append(m.group(2).strip())
+    if not texts:
+        return lrc
+
+    # 使用启动时检测到的可用引擎
+    engines = _TRANSLATE_ENGINES
+    joined = "\n".join(texts)
+    loop = asyncio.get_event_loop()
+    translated = None
+
+    async def _try_all_engines():
+        nonlocal translated
+        for engine in engines:
+            try:
+                res = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        _TRANSLATE_POOL,
+                        partial(_sync_translate, joined, engine),
+                    ),
+                    timeout=_TRANSLATE_ENGINE_TIMEOUT,
+                )
+                parts = res.splitlines()
+                if len(parts) == len(texts):
+                    translated = parts
+                    logger.info("歌词翻译成功（engine=%s，%s 行）", engine, len(parts))
+                    return
+                logger.warning("引擎 %s 行数不匹配（%s != %s）", engine, len(parts), len(texts))
+            except asyncio.TimeoutError:
+                logger.warning("引擎 %s 翻译超时（>%ss）", engine, _TRANSLATE_ENGINE_TIMEOUT)
+            except Exception as e:
+                logger.warning("引擎 %s 翻译失败: %s: %s", engine, type(e).__name__, e)
+
+    try:
+        await asyncio.wait_for(_try_all_engines(), timeout=_TRANSLATE_TIMEOUT)
+    except asyncio.TimeoutError:
+        logger.warning("歌词翻译总超时（>%ss），保留原文", _TRANSLATE_TIMEOUT)
+        return lrc
+
+    if translated is None:
+        logger.warning("歌词翻译全部引擎失败，保留原文")
+        return lrc
+
+    # 拼回：元信息/空行原样，正文先原文后译文（合并版本）
+    result = []
+    ti = 0
+    for head, orig in entries:
+        if orig is None:
+            result.append(head)
+        else:
+            result.append(f"{head}{orig}")       # 原文行
+            result.append(f"{head}{translated[ti]}")  # 译文行
+            ti += 1
+    out = "\n".join(result)
+    _cache_translation(cache_key, out)
+    return out
 
 
 def _configure_logging() -> None:
@@ -626,7 +799,16 @@ async def get_lyrics(platform: str, song_id: str, request: Request):
     except Exception:
         lrc = ""
     logger.info("歌词：%s/%s（%s）", platform, song_id, "有" if lrc else "无")
-    return {"lyrics": lrc}
+
+    # 自动翻译：非中文内容 >= 70% 时翻译为中文，返回原文+译文合并版本
+    translated_lrc = ""
+    if lrc:
+        ratio = _count_non_chinese_ratio(lrc)
+        logger.info("歌词翻译检查：%s/%s 非中文占比 %.2f，触发翻译=%s", platform, song_id, ratio, ratio >= 0.7)
+        if ratio >= 0.7:
+            translated_lrc = await _translate_lrc(lrc)
+
+    return {"lyrics": lrc, "translated": translated_lrc}
 
 
 @app.api_route("/api/download/{platform}/{song_id}", methods=["GET", "HEAD"])
@@ -993,7 +1175,9 @@ async def get_song_info(platform: str, song_id: str, request: Request):
 
 @app.get("/api/status")
 async def get_status(request: Request):
-    _require_auth(request)
+    # 未登录时也不拒绝：返回 200 + "需要密码验证"，已登录才返回完整状态
+    if not _is_authed(request):
+        return {"detail": "需要密码验证"}
     result = {}
     for name, p in _sessions.items():
         result[name] = {
@@ -1147,6 +1331,9 @@ if __name__ == "__main__":
 
     # 一起听歌房间数可能被命令行参数覆盖：按最终值重建常驻房间（启动前房间为空，无状态损失）
     listen_together.reinit_rooms()
+
+    # 启动时检测可用翻译引擎，避免运行时逐个超时浪费线程
+    _TRANSLATE_ENGINES = _detect_available_engines()
 
     # 部署自检（防运维配置陷阱）
     # 1) 反代模式：forwarded_allow_ips 未改则所有客户端共享代理 IP（限速变全局限流、
