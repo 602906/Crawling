@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 140'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='50%25' stop-color='%23a855f7'/%3E%3Cstop offset='100%25' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3CradialGradient id='glow' cx='0.5' cy='0.5' r='0.5'%3E%3Cstop offset='0%25' stop-color='%236366f1' stop-opacity='0.35'/%3E%3Cstop offset='100%25' stop-color='%236366f1' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='800' height='140' fill='%230f0f13'/%3E%3Cellipse cx='400' cy='70' rx='360' ry='80' fill='url(%23glow)'/%3E%3Cg fill='url(%23g)'%3E%3Crect x='285' width='10' rx='5' height='8' y='66'%3E%3Canimate attributeName='height' values='8;32;8' dur='1.2s' begin='0s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='66;54;66' dur='1.2s' begin='0s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='305' width='10' rx='5' height='24' y='58'%3E%3Canimate attributeName='height' values='24;10;24' dur='1.2s' begin='0.08s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='58;65;58' dur='1.2s' begin='0.08s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='325' width='10' rx='5' height='12' y='64'%3E%3Canimate attributeName='height' values='12;36;12' dur='1.2s' begin='0.16s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='64;52;64' dur='1.2s' begin='0.16s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='345' width='10' rx='5' height='32' y='54'%3E%3Canimate attributeName='height' values='32;16;32' dur='1.2s' begin='0.24s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='54;62;54' dur='1.2s' begin='0.24s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='365' width='10' rx='5' height='16' y='62'%3E%3Canimate attributeName='height' values='16;40;16' dur='1.2s' begin='0.32s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='62;50;62' dur='1.2s' begin='0.32s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='385' width='10' rx='5' height='40' y='50'%3E%3Canimate attributeName='height' values='40;12;40' dur='1.2s' begin='0.40s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='50;64;50' dur='1.2s' begin='0.40s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='405' width='10' rx='5' height='10' y='65'%3E%3Canimate attributeName='height' values='10;28;10' dur='1.2s' begin='0.48s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='65;56;65' dur='1.2s' begin='0.48s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='425' width='10' rx='5' height='28' y='56'%3E%3Canimate attributeName='height' values='28;14;28' dur='1.2s' begin='0.56s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='56;63;56' dur='1.2s' begin='0.56s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='445' width='10' rx='5' height='14' y='63'%3E%3Canimate attributeName='height' values='14;34;14' dur='1.2s' begin='0.64s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='63;53;63' dur='1.2s' begin='0.64s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='465' width='10' rx='5' height='34' y='53'%3E%3Canimate attributeName='height' values='34;18;34' dur='1.2s' begin='0.72s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='53;61;53' dur='1.2s' begin='0.72s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='485' width='10' rx='5' height='18' y='61'%3E%3Canimate attributeName='height' values='18;30;18' dur='1.2s' begin='0.80s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='61;55;61' dur='1.2s' begin='0.80s' repeatCount='indefinite'/%3E%3C/rect%3E%3Crect x='505' width='10' rx='5' height='30' y='55'%3E%3Canimate attributeName='height' values='30;10;30' dur='1.2s' begin='0.88s' repeatCount='indefinite'/%3E%3Canimate attributeName='y' values='55;65;55' dur='1.2s' begin='0.88s' repeatCount='indefinite'/%3E%3C/rect%3E%3C/g%3E%3C/svg%3E" width="100%" alt=""/>
+# Music Catch
 
-<h1>Music Catch</h1>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=20&duration=3200&pause=1200&color=6366F1&center=true&vCenter=true&width=600&lines=多平台音乐搜索+·+在线播放+·+批量下载;网易云+·+酷狗+·+Bilibili+·+QQ+音乐" alt="Music Catch" /></a>
 
-<p><b>多平台音乐搜索 · 在线播放 · 批量下载</b></p>
+<p>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://www.python-httpx.org/"><img src="https://img.shields.io/badge/httpx-async-2C5BB4?style=flat-square" alt="httpx"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License"></a>
+</p>
 
-<p><sub>网易云音乐 &nbsp;·&nbsp; 酷狗音乐 &nbsp;·&nbsp; Bilibili &nbsp;·&nbsp; QQ 音乐</sub></p>
-
-[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![httpx](https://img.shields.io/badge/httpx-async-2C5BB4?style=flat-square)](https://www.python-httpx.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
+<p><sub>一个自托管的多平台音乐聚合工具 · 支持搜索 / 播放 / 下载 / 歌单 / 歌词翻译 / 一起听歌</sub></p>
 
 </div>
 
@@ -32,24 +32,27 @@
 
 ## 核心能力
 
-| 能力 | 说明 |
+| 分类 | 能力 |
 |:---|:---|
-| **四平台聚合** | 一次搜索覆盖网易云 / 酷狗 / B 站 / QQ 音乐，结果合并展示 |
-| **多音质下载** | 128k · 320k · 无损 FLAC（B 站支持视频 / 音频，可由开关切换） |
-| **歌单导入** | 链接或 ID 一键导入，长歌单渐进式补全歌曲详情 |
-| **歌词翻译** | 网易云 / QQ 官方翻译；其余平台回退本地引擎（bing / 阿里 / 百度 / 有道） |
-| **一起听歌** | 10 个常驻房间，HTTP 长轮询 / WebSocket 双传输，房主控场 |
-| **均衡器** | 10 段 Web Audio，8 种预设 + 自定义持久化 |
-| **音频缓存** | IndexedDB 本地缓存（默认 200MB），命中免请求、断网可用 |
-| **PiP 歌词窗** | 基于 Document PiP API，主题联动，支持切歌控制 |
-| **安全机制** | 访问密码 · 动态门禁 · 反 F12 · SSRF 防护 · IP 限速 |
+| **搜索播放** | 四平台聚合搜索（网易云 / 酷狗 / B 站 / QQ 音乐），后端代理音频流，规避跨域 |
+| **下载** | 128k / 320k / 无损 FLAC 多音质；B 站支持视频 / 音频（可开关），文件名统一为 `歌手 - 歌名.ext` |
+| **歌单** | 本地歌单新建 / 重命名 / 分享 / 打包下载；平台歌单链接或 ID 一键导入，长歌单渐进补全 |
+| **歌词** | 多平台歌词拉取；网易云 / QQ 音乐官方翻译，其余平台本地引擎回退（bing / 阿里 / 百度 / 有道） |
+| **播放器** | 播放列表、收藏、四种播放模式、倍速、音量、PiP 歌词悬浮窗（主题联动） |
+| **均衡器** | 10 段 Web Audio BiquadFilter，8 种预设 + 自定义，localStorage 持久化 |
+| **音频缓存** | IndexedDB 本地缓存（默认 200MB），命中免请求、断网可用，文件头魔数校验 |
+| **一起听歌** | 10 个常驻房间，HTTP 长轮询 / WebSocket 双传输，房主控场，成员加歌 |
+| **安全** | 访问密码（SHA256 落盘）· 动态 Cookie 门禁 + IP/UA 指纹 · 反 F12 · SSRF 防护 · IP 限速 |
 
 ---
 
 ## 快速开始
 
 ```bash
+# 1. 安装依赖
 pip install -r requirements.txt
+
+# 2. 启动
 python main.py
 ```
 
@@ -58,21 +61,38 @@ python main.py
 <details>
 <summary><b>依赖清单</b></summary>
 
+<br>
+
 | 依赖 | 用途 |
 |---|---|
 | `fastapi` / `uvicorn` / `jinja2` | Web 框架与模板渲染 |
 | `httpx` | 异步 HTTP 客户端（平台请求 / 代理 / 下载） |
 | `segno` | 二维码生成 |
 | `pycryptodome` | 平台加密算法（酷狗 / 网易云） |
-| `translators` | 本地翻译引擎 |
+| `translators` | 歌词本地翻译引擎 |
 | `qqmusic-api-python` | 可选，启用 QQ 音乐时需安装 |
 
 </details>
 
 <details>
-<summary><b>打包模式（PyInstaller）</b></summary>
+<summary><b>附带脚本说明</b></summary>
 
-打包后（`sys.frozen = True`）：
+<br>
+
+| 脚本 | 用途 |
+|---|---|
+| `z-start with debug.bat` | 以 DEBUG 模式启动（输出 INFO+ 日志） |
+| `z-up.bat` | 常规启动 |
+| `z-clear __pycache__.bat` | 清理所有 `__pycache__` 缓存目录 |
+
+</details>
+
+<details>
+<summary><b>PyInstaller 打包模式</b></summary>
+
+<br>
+
+打包后（`sys.frozen = True`）行为变化：
 
 - 静态资源从 `sys._MEIPASS` 读取
 - 会话与持久化文件写入**可执行文件所在目录**
@@ -89,16 +109,20 @@ python main.py
 <details>
 <summary><b>三种配置入口</b></summary>
 
+<br>
+
 | 方式 | 位置 | 说明 |
 |---|---|---|
-| **`config.py`** | 文件顶部常量 | 直接修改代码，不修改则使用默认值 |
-| **`config.ini`** | 程序目录（需手动创建） | 键名 = 常量名，不区分大小写，任意 section 均可 |
+| **`config.py`** | 项目根目录，文件顶部常量 | 直接修改代码，不修改则使用默认值 |
+| **`config.ini`** | 程序目录（需手动创建，程序不自动生成） | 键名 = 常量名，不区分大小写，任意 section 均可 |
 | **命令行** | `--xxx` / `--no-xxx` | 所有常量都有对应参数，bool 可用 `--no-xxx` 关闭 |
 
 </details>
 
 <details>
 <summary><b>常用命令行示例</b></summary>
+
+<br>
 
 ```bash
 python main.py --port 9000                                    # 改端口
@@ -115,15 +139,17 @@ python main.py --lt-transport ws                              # 一起听歌切 
 <details>
 <summary><b>主要配置项</b></summary>
 
+<br>
+
 | 配置项 | 说明 | 默认值 |
 |---|---|---|
 | `HOST` / `PORT` | 监听地址 / 端口 | `0.0.0.0` / `8000` |
 | `PASSWORD` | 访问密码，支持 `$sha256$<salt>$<hash>` 哈希格式 | `musiccatch` |
 | `DEBUG` | 调试日志开关（INFO+ 级别） | `False` |
 | `HTTPS` / `SSL` | 反代 HTTPS / 本地证书 HTTPS | `False` |
-| `VIDEO_PLAYBACK_ENABLED` | B 站视频播放开关（关闭仅音频） | `False` |
+| `VIDEO_PLAYBACK_ENABLED` | B 站视频播放开关（关闭后仅音频） | `False` |
 | `ANTI_F12_ENABLED` | 反 F12 功能总开关 | `False` |
-| `LT_TRANSPORT` | 一起听歌传输：`http` / `ws` | `http` |
+| `LT_TRANSPORT` | 一起听歌传输方式：`http` / `ws` | `http` |
 | `LT_ROOM_COUNT` | 常驻房间数 | `10` |
 | `LT_NAME_MAX_LEN` | 用户名 / 房间名最大长度 | `20` |
 | `PLAYLIST_ENRICH_BATCH` | 分享歌单每批解析数 | `5` |
@@ -138,7 +164,9 @@ python main.py --lt-transport ws                              # 一起听歌切 
 <details>
 <summary><b>部署注意事项</b></summary>
 
-> **单进程设计** — 限速计数器、门禁 token、房间状态均为进程内内存态。使用 `uvicorn main:app --workers N` 会导致限速阈值放大、门禁 token 各 worker 不共享、房间状态各自独立。如需多进程，必须自行接入 Redis 改造。
+<br>
+
+> **单进程设计** — 限速计数器、门禁 token、一起听歌房间状态均为进程内内存态。使用 `uvicorn main:app --workers N` 会导致：限速阈值按 worker 数放大、门禁 token 各 worker 不共享导致频繁 403、房间状态各自独立。如需多进程，必须自行接入 Redis 改造。
 
 > **反向代理** — `HTTPS = True` 且 Nginx 与后端**不同机**时，必须将 `FORWARDED_ALLOW_IPS` 改为 Nginx 实际 IP，否则所有客户端共享同一 IP（限速变全局限流，token 的 IP 指纹绑定失效）。
 
@@ -153,6 +181,8 @@ python main.py --lt-transport ws                              # 一起听歌切 
 <details>
 <summary><b>平台登录</b></summary>
 
+<br>
+
 访问 `/login` 选择平台。各平台支持方式：
 
 | 平台 | 扫码 | Cookie | 手机号 |
@@ -162,12 +192,16 @@ python main.py --lt-transport ws                              # 一起听歌切 
 | Bilibili | ✓ | ✓ | — |
 | QQ 音乐 | ✓ | ✓ | ✓ |
 
-**Cookie 登录步骤**：浏览器登录对应平台 → 按 `F12` 打开开发者工具 → `Network` 面板 → 复制请求的 Cookie → 粘贴到输入框。
+**Cookie 登录步骤** — 浏览器登录对应平台 → 按 `F12` 打开开发者工具 → `Network` 面板 → 复制请求的 Cookie → 粘贴到输入框。
+
+登录状态通过 `.sessions/` 目录持久化（`bilibili.json` / `kugou.json` / `netease.json` / `qqmusic.json` 及各平台的 `_extra.json`），重启后自动恢复。
 
 </details>
 
 <details>
 <summary><b>歌单导入（支持的链接格式）</b></summary>
+
+<br>
 
 | 平台 | 支持的输入 |
 |---|---|
@@ -181,6 +215,8 @@ python main.py --lt-transport ws                              # 一起听歌切 
 
 <details>
 <summary><b>一起听歌</b></summary>
+
+<br>
 
 访问 `/listen-together`：
 
@@ -201,6 +237,8 @@ python main.py --lt-transport ws                              # 一起听歌切 
 <details>
 <summary><b>均衡器</b></summary>
 
+<br>
+
 - **入口** — 导航栏设置（齿轮）→ 均衡器，或播放条 EQ 按钮
 - **频段** — 32Hz ~ 16kHz 共 10 段 BiquadFilter 串联
 - **预设** — 平直 / 流行 / 摇滚 / 爵士 / 古典 / 重低音 / 人声 / 电子
@@ -211,6 +249,8 @@ python main.py --lt-transport ws                              # 一起听歌切 
 
 <details>
 <summary><b>音频缓存</b></summary>
+
+<br>
 
 - **存储** — 浏览器 IndexedDB（`MusicCatchAudioCache`），默认上限 200MB
 - **行为** — 命中缓存直接本地播放，后台不再请求
@@ -225,44 +265,89 @@ python main.py --lt-transport ws                              # 一起听歌切 
 
 ```
 MusicCatch/
-├── main.py                  FastAPI 入口、路由、安全中间件
-├── config.py                配置常量 + 参数解析
-├── anti_devtools.py         门禁 + 反 F12 JS 生成与校验
-├── lyric_translator.py      歌词翻译（平台原生 + 本地引擎）
-├── listen_together.py       一起听歌房间状态与 API
-├── playlist_download.py     歌单流式下载（服务端不落盘）
+├── main.py                       FastAPI 入口、路由、安全中间件
+├── config.py                     配置常量 + 参数解析
+├── requirements.txt              依赖清单
+├── README.md                     说明文档
+├── LICENSE                       MIT License
+├── .gitignore
 │
-├── platforms/
-│   ├── __init__.py          PLATFORMS 注册表
-│   ├── base.py              MusicPlatform 抽象基类 / Song / SearchResult
-│   ├── netease.py           网易云音乐
-│   ├── kugou.py             酷狗音乐
-│   ├── bilibili.py          Bilibili
-│   └── qqmusic.py           QQ 音乐
+├── function/                     ── 核心功能模块 ──
+│   ├── anti_devtools.py          门禁 + 反 F12 JS 生成与校验
+│   ├── listen_together.py        一起听歌房间状态与 API
+│   ├── lyric_translator.py       歌词翻译（平台原生 + 本地引擎）
+│   └── playlist_download.py      歌单流式下载（服务端不落盘）
 │
-├── templates/               Jinja2 模板
-│   ├── base.html            通用骨架 + 导航栏 + 设置
-│   ├── index.html           主页
-│   ├── login.html           平台登录页
-│   ├── verify.html          访问密码验证页
-│   └── listen_together.html 一起听歌页
+├── platforms/                    ── 平台接入 ──
+│   ├── __init__.py               PLATFORMS 注册表
+│   ├── base.py                   MusicPlatform 抽象基类 / Song / SearchResult
+│   ├── netease.py                网易云音乐
+│   ├── kugou.py                  酷狗音乐
+│   ├── bilibili.py               Bilibili
+│   └── qqmusic.py                QQ 音乐
 │
-└── static/
-    ├── css/                 base / player / playlist / lyrics / eq 等
-    └── js/                  player / search / lyrics / eq / listen-together 等
+├── templates/                    ── Jinja2 模板 ──
+│   ├── base.html                 通用骨架 + 导航栏 + 设置
+│   ├── index.html                主页（搜索 / 播放器 / 歌单侧栏 / 均衡器）
+│   ├── login.html                平台登录页
+│   ├── verify.html               访问密码验证页
+│   └── listen_together.html      一起听歌页
+│
+├── static/                       ── 前端资源 ──
+│   ├── css/
+│   │   ├── base.css              全局变量 / 布局 / 通用组件
+│   │   ├── player.css            播放条 / 视频容器
+│   │   ├── search.css            搜索结果列表
+│   │   ├── playlist.css          播放列表面板
+│   │   ├── favorites.css         收藏面板
+│   │   ├── lyrics.css            歌词侧栏
+│   │   ├── equalizer.css         均衡器
+│   │   ├── context-menu.css      右键菜单 + 信息弹窗
+│   │   ├── login.css             登录页 / 验证页
+│   │   ├── pip.css               PiP 悬浮窗
+│   │   ├── playlist.sidebar.css  歌单侧栏 + 导入弹窗
+│   │   ├── playlist.sidebar.history.css  历史缓存区
+│   │   ├── listen-together.css   一起听歌
+│   │   └── responsive.css        移动端适配
+│   │
+│   └── js/
+│       ├── app.js                主题 / 侧面板互斥 / IndexedDB 缓存
+│       ├── player.js             播放器 / 音量 / 倍速 / 自动重连
+│       ├── search.js             搜索与结果渲染
+│       ├── lyrics.js             歌词解析 / 高亮 / 导出
+│       ├── equalizer.js          均衡器（Web Audio）
+│       ├── playlist.js           播放列表面板
+│       ├── favorites.js          收藏面板
+│       ├── context-menu.js       右键菜单 / 分享 / 下载
+│       ├── pip.js                PiP 悬浮窗
+│       ├── playlist.sidebar.js   歌单侧栏 / 导入 / 分享链接
+│       ├── playlist.sidebar.history.js  历史缓存视图
+│       ├── login.js              登录页交互
+│       ├── verify.js             访问密码验证
+│       └── listen-together.js    一起听歌（HTTP / WS 双传输）
+│
+├── .sessions/                    ── 登录会话持久化（运行时生成）──
+│   ├── bilibili.json
+│   ├── kugou.json / kugou_extra.json
+│   ├── netease.json / netease_extra.json
+│   └── qqmusic.json
+│
+└── z-*.bat                       启动 / 调试 / 清缓存辅助脚本（Windows）
 ```
 
 <details>
 <summary><b>模块职责说明</b></summary>
 
+<br>
+
 | 模块 | 职责 |
 |---|---|
 | `main.py` | 应用入口、HTTP 路由、安全中间件（限速 / 门禁 / CSP）、各类端点 |
 | `config.py` | 全部可配置常量，命令行 / config.ini / 默认值三级覆盖 |
-| `anti_devtools.py` | 动态 Cookie 名、token 绑定与续期、分层动态加密的反 F12 JS |
-| `lyric_translator.py` | 平台原生翻译注册表、本地翻译三级策略（整段→分批→逐行）、LRU 缓存 |
-| `listen_together.py` | 房间模型、成员管理、HTTP / WS 双传输、播放缓存、消息处理 |
-| `playlist_download.py` | 歌单流式协议：4B 长度前缀拼接，服务端不落盘 |
+| `function/anti_devtools.py` | 动态 Cookie 名、token 绑定与续期、分层动态加密的反 F12 JS |
+| `function/lyric_translator.py` | 平台原生翻译注册表、本地翻译三级策略（整段→分批→逐行）、LRU 缓存 |
+| `function/listen_together.py` | 房间模型、成员管理、HTTP / WS 双传输、播放缓存、消息处理 |
+| `function/playlist_download.py` | 歌单流式协议：4B 长度前缀拼接，服务端不落盘 |
 | `platforms/base.py` | 平台抽象接口：登录 / 搜索 / 播放 / 下载 / 歌词 / 歌单导入 |
 
 </details>
@@ -276,6 +361,8 @@ MusicCatch/
 <details>
 <summary><b>门禁与认证</b></summary>
 
+<br>
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/api/gate/register` | 注册门禁 token（动态 Cookie 名，IP + 指纹绑定） |
@@ -286,6 +373,8 @@ MusicCatch/
 
 <details>
 <summary><b>音乐搜索与播放</b></summary>
+
+<br>
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -302,6 +391,8 @@ MusicCatch/
 <details>
 <summary><b>登录（四平台通用）</b></summary>
 
+<br>
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/api/login/qrcode/{platform}` | 获取二维码（base64 图片） |
@@ -315,10 +406,12 @@ MusicCatch/
 <details>
 <summary><b>歌单</b></summary>
 
+<br>
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/api/playlist/import` | 平台歌单导入（分页） |
-| `POST` | `/api/playlist/download` | 歌单下载（流式协议见 `playlist_download.py`） |
+| `POST` | `/api/playlist/download` | 歌单下载（流式协议见 `function/playlist_download.py`） |
 | `POST` | `/api/resolve-songs` | 分享歌单批量解析（并发 8） |
 | `POST` | `/api/resolve-songs-stream` | 分享歌单批量解析（SSE 分批流式） |
 
@@ -326,6 +419,8 @@ MusicCatch/
 
 <details>
 <summary><b>一起听歌</b></summary>
+
+<br>
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -348,12 +443,16 @@ MusicCatch/
 <details>
 <summary><b>QQ 音乐为什么无法播放 / 下载？</b></summary>
 
+<br>
+
 QQ 音乐的播放 / 下载 URL 需要登录凭证（`musicid` + `musickey`）才能获取带 vkey 的完整地址，未登录时接口返回空串。请先通过扫码或 Cookie 登录。
 
 </details>
 
 <details>
 <summary><b>B 站视频 / 音频加载失败？</b></summary>
+
+<br>
 
 部分部署环境**禁止 80 端口出站**，CDN 返回 http 直链时会连接失败。本程序已内置自动升级到 https 重试一次的逻辑，但若 CDN 本身不支持 https 仍会失败。可在服务器安全组放行 80 出站。
 
@@ -362,12 +461,16 @@ QQ 音乐的播放 / 下载 URL 需要登录凭证（`musicid` + `musickey`）�
 <details>
 <summary><b>每次重启都要重新验证门禁？</b></summary>
 
-正常现象。门禁密钥在**服务启动时随机生成**，重启即全部失效，旧 cookie 自动作废。这是设计上的安全隔离，避免 token 长期有效被复用。
+<br>
+
+正常现象。门禁密钥在**服务启动时随机生成**，重启即全部失效，旧 cookie 自动作废。这是设计上的安全隔离，避免 token 长期有效被复用。（登录状态不受影响，仍会从 `.sessions/` 恢复。）
 
 </details>
 
 <details>
 <summary><b>为什么不能多 worker 部署？</b></summary>
+
+<br>
 
 限速计数器（`_RATE_LIMITS`）、门禁 token（`_tokens`）、一起听歌房间状态（`_ROOMS`）**均为单进程内存态**。多 worker 下：
 
@@ -382,7 +485,27 @@ QQ 音乐的播放 / 下载 URL 需要登录凭证（`musicid` + `musickey`）�
 <details>
 <summary><b>歌词翻译没有触发？</b></summary>
 
+<br>
+
 本地翻译仅对**非中文占比 ≥ 70%** 的歌词触发（可通过 `LYRICS_TRANSLATION_NON_CHINESE_RATIO` 调整）。另外需确保 `translators` 库已安装且能联网，可用引擎在启动时自动探测。
+
+</details>
+
+<details>
+<summary><b>能不能自定义主题？</b></summary>
+
+<br>
+
+支持。前端通过 `data-theme="light|dark"` 属性切换，颜色变量集中在 `static/css/base.css` 的 `:root` 与 `[data-theme="light"]` 中，修改 CSS 变量即可换肤。主题选择会写入 localStorage 并在多标签页同步。
+
+</details>
+
+<details>
+<summary><b>根目录的 <code>log.log.log</code> 是什么？</b></summary>
+
+<br>
+
+运行日志文件，由程序运行时自动写入。已在 `.gitignore` 中忽略，不建议提交到仓库。
 
 </details>
 
