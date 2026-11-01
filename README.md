@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236366f1'/><circle cx='35' cy='72' r='12' fill='white'/><circle cx='65' cy='64' r='12' fill='white'/><rect x='44' y='20' width='5' height='52' fill='white'/><rect x='74' y='12' width='5' height='52' fill='white'/><rect x='44' y='16' width='35' height='6' rx='3' fill='white'/></svg>" width="88" height="88" alt="Music Catch"/>
-
 # Music Catch
 
 **多平台音乐搜索 · 在线播放 · 批量下载**
@@ -11,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![httpx](https://img.shields.io/badge/httpx-async-2C5BB4?style=flat-square)](https://www.python-httpx.org/)
-[![License](https://img.shields.io/badge/License-See%20Repo-lightgrey?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
 
 </div>
 
