@@ -75,19 +75,6 @@ python main.py
 </details>
 
 <details>
-<summary><b>附带脚本说明</b></summary>
-
-<br>
-
-| 脚本 | 用途 |
-|---|---|
-| `z-start with debug.bat` | 以 DEBUG 模式启动（输出 INFO+ 日志） |
-| `z-up.bat` | 常规启动 |
-| `z-clear __pycache__.bat` | 清理所有 `__pycache__` 缓存目录 |
-
-</details>
-
-<details>
 <summary><b>PyInstaller 打包模式</b></summary>
 
 <br>
@@ -194,7 +181,7 @@ python main.py --lt-transport ws                              # 一起听歌切 
 
 **Cookie 登录步骤** — 浏览器登录对应平台 → 按 `F12` 打开开发者工具 → `Network` 面板 → 复制请求的 Cookie → 粘贴到输入框。
 
-登录状态通过 `.sessions/` 目录持久化（`bilibili.json` / `kugou.json` / `netease.json` / `qqmusic.json` 及各平台的 `_extra.json`），重启后自动恢复。
+登录状态通过 `.sessions/` 目录持久化，重启后自动恢复。
 
 </details>
 
@@ -265,74 +252,36 @@ python main.py --lt-transport ws                              # 一起听歌切 
 
 ```
 MusicCatch/
-├── main.py                       FastAPI 入口、路由、安全中间件
-├── config.py                     配置常量 + 参数解析
-├── requirements.txt              依赖清单
-├── README.md                     说明文档
-├── LICENSE                       MIT License
-├── .gitignore
+├── main.py                  FastAPI 入口、路由、安全中间件
+├── config.py                配置常量 + 参数解析
+├── requirements.txt         依赖清单
+├── LICENSE                  MIT License
+├── README.md                说明文档
 │
-├── function/                     ── 核心功能模块 ──
-│   ├── anti_devtools.py          门禁 + 反 F12 JS 生成与校验
-│   ├── listen_together.py        一起听歌房间状态与 API
-│   ├── lyric_translator.py       歌词翻译（平台原生 + 本地引擎）
-│   └── playlist_download.py      歌单流式下载（服务端不落盘）
+├── function/                核心功能模块
+│   ├── anti_devtools.py     门禁 + 反 F12 JS 生成与校验
+│   ├── listen_together.py   一起听歌房间状态与 API
+│   ├── lyric_translator.py  歌词翻译（平台原生 + 本地引擎）
+│   └── playlist_download.py 歌单流式下载（服务端不落盘）
 │
-├── platforms/                    ── 平台接入 ──
-│   ├── __init__.py               PLATFORMS 注册表
-│   ├── base.py                   MusicPlatform 抽象基类 / Song / SearchResult
-│   ├── netease.py                网易云音乐
-│   ├── kugou.py                  酷狗音乐
-│   ├── bilibili.py               Bilibili
-│   └── qqmusic.py                QQ 音乐
+├── platforms/               平台接入
+│   ├── __init__.py          PLATFORMS 注册表
+│   ├── base.py              MusicPlatform 抽象基类 / Song / SearchResult
+│   ├── netease.py           网易云音乐
+│   ├── kugou.py             酷狗音乐
+│   ├── bilibili.py          Bilibili
+│   └── qqmusic.py           QQ 音乐
 │
-├── templates/                    ── Jinja2 模板 ──
-│   ├── base.html                 通用骨架 + 导航栏 + 设置
-│   ├── index.html                主页（搜索 / 播放器 / 歌单侧栏 / 均衡器）
-│   ├── login.html                平台登录页
-│   ├── verify.html               访问密码验证页
-│   └── listen_together.html      一起听歌页
+├── templates/               Jinja2 模板
+│   ├── base.html            通用骨架 + 导航栏 + 设置
+│   ├── index.html           主页（搜索 / 播放器 / 歌单侧栏 / 均衡器）
+│   ├── login.html           平台登录页
+│   ├── verify.html          访问密码验证页
+│   └── listen_together.html 一起听歌页
 │
-├── static/                       ── 前端资源 ──
-│   ├── css/
-│   │   ├── base.css              全局变量 / 布局 / 通用组件
-│   │   ├── player.css            播放条 / 视频容器
-│   │   ├── search.css            搜索结果列表
-│   │   ├── playlist.css          播放列表面板
-│   │   ├── favorites.css         收藏面板
-│   │   ├── lyrics.css            歌词侧栏
-│   │   ├── equalizer.css         均衡器
-│   │   ├── context-menu.css      右键菜单 + 信息弹窗
-│   │   ├── login.css             登录页 / 验证页
-│   │   ├── pip.css               PiP 悬浮窗
-│   │   ├── playlist.sidebar.css  歌单侧栏 + 导入弹窗
-│   │   ├── playlist.sidebar.history.css  历史缓存区
-│   │   ├── listen-together.css   一起听歌
-│   │   └── responsive.css        移动端适配
-│   │
-│   └── js/
-│       ├── app.js                主题 / 侧面板互斥 / IndexedDB 缓存
-│       ├── player.js             播放器 / 音量 / 倍速 / 自动重连
-│       ├── search.js             搜索与结果渲染
-│       ├── lyrics.js             歌词解析 / 高亮 / 导出
-│       ├── equalizer.js          均衡器（Web Audio）
-│       ├── playlist.js           播放列表面板
-│       ├── favorites.js          收藏面板
-│       ├── context-menu.js       右键菜单 / 分享 / 下载
-│       ├── pip.js                PiP 悬浮窗
-│       ├── playlist.sidebar.js   歌单侧栏 / 导入 / 分享链接
-│       ├── playlist.sidebar.history.js  历史缓存视图
-│       ├── login.js              登录页交互
-│       ├── verify.js             访问密码验证
-│       └── listen-together.js    一起听歌（HTTP / WS 双传输）
-│
-├── .sessions/                    ── 登录会话持久化（运行时生成）──
-│   ├── bilibili.json
-│   ├── kugou.json / kugou_extra.json
-│   ├── netease.json / netease_extra.json
-│   └── qqmusic.json
-│
-└── z-*.bat                       启动 / 调试 / 清缓存辅助脚本（Windows）
+└── static/                  前端资源
+    ├── css/                 全局 / 播放器 / 歌单 / 歌词 / 均衡器等样式
+    └── js/                  播放器 / 搜索 / 歌词 / 均衡器 / 一起听歌等脚本
 ```
 
 <details>
@@ -497,15 +446,6 @@ QQ 音乐的播放 / 下载 URL 需要登录凭证（`musicid` + `musickey`）�
 <br>
 
 支持。前端通过 `data-theme="light|dark"` 属性切换，颜色变量集中在 `static/css/base.css` 的 `:root` 与 `[data-theme="light"]` 中，修改 CSS 变量即可换肤。主题选择会写入 localStorage 并在多标签页同步。
-
-</details>
-
-<details>
-<summary><b>根目录的 <code>log.log.log</code> 是什么？</b></summary>
-
-<br>
-
-运行日志文件，由程序运行时自动写入。已在 `.gitignore` 中忽略，不建议提交到仓库。
 
 </details>
 
