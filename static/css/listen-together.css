@@ -365,9 +365,11 @@
 .badge-kugou { background: rgba(59,130,246,0.15); color: #60a5fa; }
 .badge-netease { background: rgba(239,68,68,0.15); color: #f87171; }
 .badge-bilibili { background: rgba(251,114,153,0.15); color: #fb7299; }
+.badge-qqmusic { background: rgba(49,194,124,0.15); color: #31c27c; }
 [data-theme="light"] .badge-kugou { color: #2563eb; }
 [data-theme="light"] .badge-netease { color: #dc2626; }
 [data-theme="light"] .badge-bilibili { color: #d6336c; }
+[data-theme="light"] .badge-qqmusic { color: #1da860; }
 .lt-search-item .platform-badge { margin-left: 6px; }
 .lt-search-item .lt-search-duration { margin-left: 6px; color: var(--text-secondary); }
 .lt-search-item .lt-search-info { flex: 1; min-width: 0; }

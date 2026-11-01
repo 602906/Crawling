@@ -285,8 +285,9 @@ function pipHighlight(index) {
     }
 
     if (index >= 0) {
-        // 有翻译时，原文行在 data-index = index * 2，译文行在 index * 2 + 1
-        var pipIdx = (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0) ? index * 2 : index;
+        // 与主面板一致：翻译处于激活状态时，原文行在 data-index = index * 2
+        var transActive = (typeof _isTranslationActive === 'function') ? _isTranslationActive() : (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0);
+        var pipIdx = transActive ? index * 2 : index;
         var line = listEl.querySelector('.pip-lyric-line[data-index="' + pipIdx + '"]');
         if (line) {
             line.classList.add('active');
@@ -305,8 +306,9 @@ function pipHighlight(index) {
 
 // 用当前歌词数据重建 PiP 内容
 function _rebuildPipLyrics() {
-    // 有翻译时用合并版（原文+译文交替），否则用原文
-    var displayData = (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0) ? lyricsTranslated : (typeof lyricsData !== 'undefined' ? lyricsData : []);
+    // 与主面板一致：翻译激活时用合并版（原文+译文交替），否则用原文
+    var transActive = (typeof _isTranslationActive === 'function') ? _isTranslationActive() : (typeof lyricsTranslated !== 'undefined' && lyricsTranslated.length > 0);
+    var displayData = transActive ? lyricsTranslated : (typeof lyricsData !== 'undefined' ? lyricsData : []);
     if (displayData.length) {
         pipRenderLyrics(displayData);
         if (typeof currentLyricIndex !== 'undefined' && currentLyricIndex >= 0) {

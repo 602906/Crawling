@@ -172,7 +172,7 @@
     margin-top: 2px;
 }
 
-/* 歌单项操作按钮（播放全部 / 分享 / 删除），hover 歌单项时显示 */
+/* 歌单项操作区（仅保留"更多"按钮），hover 歌单项时显示 */
 .playlist-sidebar-ops {
     display: flex;
     gap: 2px;
@@ -188,23 +188,18 @@
     background: transparent;
     border: none;
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
-    padding: 4px 5px;
+    padding: 4px 6px;
     border-radius: 4px;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .playlist-sidebar-op:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
-}
-.playlist-sidebar-op-rename:hover {
-    color: var(--accent);
-    background: rgba(99, 102, 241, 0.1);
-}
-.playlist-sidebar-op-del:hover {
-    color: var(--error);
-    background: rgba(239, 68, 68, 0.1);
 }
 
 .playlist-sidebar-empty {
@@ -369,4 +364,59 @@
     .playlist-sidebar-ops {
         opacity: 1;
     }
+}
+
+/* ── 歌单下载进度浮窗 ── */
+.pl-download-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    display: none;
+}
+.pl-download-box {
+    width: 300px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    box-shadow: 0 8px 32px var(--shadow-strong);
+}
+.pl-download-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+.pl-download-title { color: var(--text-primary); font-weight: 600; }
+.pl-download-status { color: var(--text-secondary); }
+.pl-download-bar {
+    height: 6px;
+    background: var(--bg-hover);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.pl-download-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.2s;
+}
+.pl-download-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.pl-download-step {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
 }

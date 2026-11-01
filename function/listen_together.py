@@ -37,7 +37,7 @@ from fastapi import APIRouter, Request, HTTPException, WebSocket
 from fastapi.responses import JSONResponse
 
 import config
-import anti_devtools
+from function import anti_devtools
 
 logger = logging.getLogger(__name__)
 

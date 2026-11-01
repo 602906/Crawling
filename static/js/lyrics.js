@@ -6,6 +6,46 @@ let lyricsRaw = '';        // 原始 LRC 文本，供复制/下载导出
 let lyricsTranslatedRaw = ''; // 翻译后的 LRC 文本
 let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件名
 
+// 是否显示翻译（用户可通过标题栏按钮切换，偏好持久化）
+let lyricsShowTranslation = true;
+try {
+    const saved = localStorage.getItem('mc_lyrics_show_translation');
+    if (saved === '0') lyricsShowTranslation = false;
+} catch (e) {}
+
+// 当前是否真的处于"显示翻译"状态（有翻译数据 + 用户开关打开）
+function _isTranslationActive() {
+    return lyricsShowTranslation && lyricsTranslated.length > 0;
+}
+
+// 同步标题栏翻译按钮的可见性与激活态
+function _syncTranslateToggle() {
+    const btn = document.getElementById('lyricsTranslateToggle');
+    if (!btn) return;
+    // 只有确实拿到翻译数据时才显示按钮
+    btn.style.display = lyricsTranslated.length > 0 ? '' : 'none';
+    btn.classList.toggle('active', _isTranslationActive());
+    btn.title = _isTranslationActive() ? '隐藏翻译' : '显示翻译';
+}
+
+// 标题栏按钮：切换翻译显示
+function toggleLyricsTranslation() {
+    if (!lyricsTranslated.length) return;
+    lyricsShowTranslation = !lyricsShowTranslation;
+    try { localStorage.setItem('mc_lyrics_show_translation', lyricsShowTranslation ? '1' : '0'); } catch (e) {}
+    _syncTranslateToggle();
+    renderLyrics();
+    // 重绘后恢复当前行高亮（等待下一帧布局）
+    requestAnimationFrame(() => {
+        if (currentLyricIndex >= 0) {
+            const content = document.getElementById('lyricsContent');
+            const prev = content && content.querySelector('.lyric-line.active');
+            if (prev) prev.classList.remove('active');
+            _highlightLine(currentLyricIndex);
+        }
+    });
+}
+
     function parseLRC(text) {
         if (!text) return [];
         const lines = text.split('\n');
@@ -68,6 +108,7 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
                     lyricsTranslated = parseLRC(lyricsTranslatedRaw);
                     if (exportBtn) exportBtn.style.display = lyricsData.length ? '' : 'none';
                     _syncExportTranslatedVis();
+                    _syncTranslateToggle();
                     renderLyrics();
                     return;
                 }
@@ -92,18 +133,17 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
             lyricsTranslatedRaw = transText;
             lyricsSong = song;
             lyricsData = parseLRC(rawText);
-            if (transText) {
-                lyricsTranslated = parseLRC(transText);
-            }
+            lyricsTranslated = parseLRC(transText || '');
             if (exportBtn) exportBtn.style.display = lyricsData.length ? '' : 'none';
             _syncExportTranslatedVis();
+            _syncTranslateToggle();
             renderLyrics();
         } catch (e) {
             if (content) content.innerHTML = '<p class="lyrics-empty">歌词加载失败</p>';
         }
     }
 
-    // 仅当有翻译时，才显示"下载 LRC 歌词(翻译)"选项
+    // 仅当有翻译时，才显示"下载 LRC 歌词 (翻译)"选项
     function _syncExportTranslatedVis() {
         const el = document.getElementById('lyricsExportTranslated');
         if (el) el.style.display = lyricsTranslatedRaw ? '' : 'none';
@@ -181,7 +221,7 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
     function downloadLrcTranslated() {
         _closeLyricsExportMenu();
         if (!lyricsTranslatedRaw) return;
-        // 与音频下载保持一致：歌手 - 歌名(翻译).lrc
+        // 与音频下载保持一致：歌手 - 歌名 (翻译).lrc
         const name = lyricsSong ? `${lyricsSong.artist} - ${lyricsSong.name}` : '歌词';
         // 去掉文件名非法字符
         const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
@@ -194,7 +234,7 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('LRC 歌词(翻译)已下载');
+        showToast('LRC 歌词 (翻译) 已下载');
     }
 
     function renderLyrics() {
@@ -204,15 +244,45 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
             if (typeof pipRenderLyrics === 'function') pipRenderLyrics([]);
             return;
         }
-        // translated 是服务端合并版（原文+译文交替），直接用它渲染；无翻译时用原歌词
-        const displayData = lyricsTranslated.length > 0 ? lyricsTranslated : lyricsData;
+        // 根据用户开关决定显示合并版（原文 + 译文）还是纯原文
+        const displayData = _isTranslationActive() ? lyricsTranslated : lyricsData;
         content.innerHTML = displayData.map((line, i) =>
             `<div class="lyric-line" data-index="${i}" onclick="seekToLyric(${line.time})">${escHtml(line.text)}</div>`
         ).join('');
         if (typeof pipRenderLyrics === 'function') pipRenderLyrics(displayData);
     }
 
-    let _lastDisplayData = [];
+    // 高亮当前行（独立函数，供 renderLyrics 和 toggleLyricsTranslation 调用）
+    function _highlightLine(idx) {
+        if (!lyricsData.length || idx < 0) return;
+        const content = document.getElementById('lyricsContent');
+        if (!content) return;
+
+        // 有翻译时 displayData 是原文 + 译文交替，每首曲原文在原数组的 idx*2 位置
+        const pairedIdx = _isTranslationActive() ? idx * 2 : idx;
+        const activeLine = content.querySelector(`.lyric-line[data-index="${pairedIdx}"]`);
+        if (!activeLine) return;
+
+        // 移除之前的高亮
+        const prev = content.querySelector('.lyric-line.active');
+        if (prev && prev !== activeLine) {
+            prev.classList.remove('active');
+        }
+
+        activeLine.classList.add('active');
+
+        // 等待浏览器布局完成后再滚动
+        requestAnimationFrame(() => {
+            const containerHeight = content.clientHeight;
+            const lineTop = activeLine.offsetTop;
+            const lineHeight = activeLine.offsetHeight;
+            content.scrollTo({
+                top: lineTop - containerHeight / 2 + lineHeight / 2,
+                behavior: 'smooth'
+            });
+        });
+    }
+
     function updateLyricsHighlight(currentTime) {
         if (!lyricsData.length) return;
         let idx = -1;
@@ -228,25 +298,7 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
         // 同步更新画中画悬浮窗歌词
         if (typeof pipHighlight === 'function') pipHighlight(currentLyricIndex);
 
-        const content = document.getElementById('lyricsContent');
-        const prev = content.querySelector('.lyric-line.active');
-        if (prev) prev.classList.remove('active');
-
-        if (idx >= 0) {
-            // displayData 是原文+译文交替的合并版，每首曲原文在原数组的 idx*2 位置
-            const pairedIdx = lyricsTranslated.length > 0 ? idx * 2 : idx;
-            const activeLine = content.querySelector(`.lyric-line[data-index="${pairedIdx}"]`);
-            if (activeLine) {
-                activeLine.classList.add('active');
-                const containerHeight = content.clientHeight;
-                const lineTop = activeLine.offsetTop;
-                const lineHeight = activeLine.offsetHeight;
-                content.scrollTo({
-                    top: lineTop - containerHeight / 2 + lineHeight / 2,
-                    behavior: 'smooth'
-                });
-            }
-        }
+        _highlightLine(idx);
     }
 
     function toggleLyrics() {
@@ -276,3 +328,17 @@ let lyricsSong = null;     // 当前歌词对应的歌曲，用于生成文件�
             currentPlayer.currentTime = time;
         }
     }
+
+    function escHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    window.fetchLyrics = fetchLyrics;
+    window.toggleLyricsExportMenu = toggleLyricsExportMenu;
+    window.copyLyricsText = copyLyricsText;
+    window.downloadLrcFile = downloadLrcFile;
+    window.downloadLrcTranslated = downloadLrcTranslated;
+    window.toggleLyricsTranslation = toggleLyricsTranslation;
+    window.seekToLyric = seekToLyric;

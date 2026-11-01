@@ -81,6 +81,41 @@
     flex-shrink: 0;
 }
 
+/* 翻译显示切换按钮：标题右侧 */
+.lyrics-translate-toggle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 4px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.55;
+}
+
+.lyrics-translate-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    opacity: 1;
+}
+
+/* 激活态：翻译正在显示 */
+.lyrics-translate-toggle.active {
+    color: var(--accent);
+    opacity: 1;
+}
+
+.lyrics-translate-toggle.active:hover {
+    background: var(--bg-hover);
+}
+
 .lyrics-export-btn {
     background: transparent;
     border: none;

@@ -271,7 +271,7 @@ async function clearAudioCache() {
 
 // === Utilities ===
     function platformName(p) {
-        return {kugou: '酷狗', netease: '网易云', bilibili: 'B站'}[p] || p;
+        return {kugou: '酷狗', netease: '网易云', bilibili: 'B站', qqmusic: 'QQ音乐'}[p] || p;
     }
 
     function formatTime(s) {

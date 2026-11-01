@@ -359,6 +359,92 @@ class NetEasePlatform(MusicPlatform):
             lrc = lrc + "\n" + tlrc
         return lrc
 
+    async def get_lyrics_with_translation(self, song: Song) -> dict | None:
+        """
+        获取网易云歌词及官方翻译（tlyric），按时间戳逐行交错合并。
+        返回 {"lyrics": 原文LRC, "translated": 原文+译文交错} 或 None（无翻译时）。
+        """
+        async with self._client() as client:
+            resp = await client.get(
+                "https://music.163.com/api/song/lyric",
+                params={"id": song.id, "lv": "1", "kv": "1", "tv": "-1"},
+            )
+            data = resp.json()
+
+        lrc = (data.get("lrc", {}) or {}).get("lyric", "") or ""
+        tlrc = (data.get("tlyric", {}) or {}).get("lyric", "") or ""
+        if not lrc or not tlrc:
+            return None
+
+        merged = self._merge_lyrics_by_time(lrc, tlrc)
+        if not merged:
+            return None
+        return {"lyrics": lrc, "translated": merged}
+
+    @staticmethod
+    def _parse_lrc_map(text: str) -> dict[str, str]:
+        """解析 LRC 为 {时间戳: 文本}，同一时间戳多行用 \\n 连接。"""
+        result: dict[str, str] = {}
+        for line in text.split("\n"):
+            m = re.match(r"^((?:\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+)(.*)$", line)
+            if not m:
+                continue
+            body = m.group(2).strip()
+            if not body:
+                continue
+            for tag in re.findall(r"\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]", m.group(1)):
+                norm = NetEasePlatform._norm_tag(tag)
+                if norm in result:
+                    result[norm] = result[norm] + "\n" + body
+                else:
+                    result[norm] = body
+        return result
+
+    @staticmethod
+    def _norm_tag(tag: str) -> str:
+        """把 [mm:ss.xx] / [mm:ss.xxx] / [mm:ss:xx] 归一化为毫秒数便于对齐。"""
+        m = re.match(r"^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]$", tag)
+        if not m:
+            return tag
+        mm, ss, frac = m.group(1), m.group(2), m.group(3) or "0"
+        ms = int(frac.ljust(3, "0")[:3])
+        return str(int(mm) * 60000 + int(ss) * 1000 + ms)
+
+    @staticmethod
+    def _merge_lyrics_by_time(lrc: str, tlrc: str) -> str:
+        """
+        按时间戳把译文插到对应原文行之后。
+        原文行保持原有顺序与格式（含 [ti:]/[ar:] 等元信息行）；
+        译文行沿用原文的时间标签，紧跟原文行。
+        """
+        trans_map = NetEasePlatform._parse_lrc_map(tlrc)
+        if not trans_map:
+            return ""
+
+        out: list[str] = []
+        used: set[str] = set()
+        for line in lrc.split("\n"):
+            m = re.match(r"^((?:\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+)(.*)$", line)
+            if not m:
+                out.append(line)
+                continue
+            body = m.group(2).strip()
+            out.append(line)
+            if not body:
+                continue
+            tags = re.findall(r"\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]", m.group(1))
+            if not tags:
+                continue
+            key = NetEasePlatform._norm_tag(tags[0])
+            trans = trans_map.get(key)
+            if trans and key not in used:
+                used.add(key)
+                # 译文沿用原文的时间标签前缀
+                prefix = "".join(tags)
+                for t_line in trans.split("\n"):
+                    out.append(f"{prefix}{t_line}")
+        return "\n".join(out) if used else ""
+
     # ── 歌单导入（官方接口，参照 EchoMusic netease.ts）──
 
     @staticmethod

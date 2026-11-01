@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -8,6 +9,8 @@ import time
 
 import httpx
 from .base import MusicPlatform, Song, SearchResult
+
+logger = logging.getLogger(__name__)
 
 LITE_APPID = 3116
 LITE_CLIENTVER = 11440

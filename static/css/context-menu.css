@@ -64,6 +64,17 @@
 .ctx-has-sub.sub-open::after { display: none; }
 .ctx-submenu .ctx-item { padding: 8px 16px; display: block; }
 
+/* 歌单操作项（危险操作标红） */
+.ctx-item-danger { color: var(--error); }
+.ctx-item-danger:hover { background: rgba(239,68,68,0.1); }
+
+/* 菜单图标统一约束 */
+.ctx-item svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
+/* 歌单 section 的菜单项：图标和文字靠左紧挨着显示（不 space-between 撑开） */
+#ctxPlaylistSection .ctx-item { justify-content: flex-start; }
+#ctxPlaylistSection .ctx-item svg { margin-right: 8px; }
+
 /* Info Modal */
 .info-overlay {
     display: none;

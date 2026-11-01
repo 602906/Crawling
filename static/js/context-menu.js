@@ -42,8 +42,13 @@
     }
 
     function _populateCtxMenu() {
+        const songSection = document.getElementById('ctxSongSection');
+        const plSection = document.getElementById('ctxPlaylistSection');
+        if (songSection) songSection.style.display = 'block';
+        if (plSection) plSection.style.display = 'none';
+
         const favText = document.getElementById('ctxFavText');
-        favText.textContent = isFavorite(_ctxSong) ? '♡ 取消收藏' : '♥ 收藏';
+        favText.textContent = isFavorite(_ctxSong) ? '取消收藏' : '收藏';
 
         // 仅当右键的正是当前播放歌曲且已有进度时，显示“从当前播放处分享”
         const shareAtItem = document.getElementById('ctxShareAtItem');
@@ -119,6 +124,8 @@
         menu.style.display = 'none';
         document.getElementById('ctxDownloadItem').classList.remove('sub-open');
         document.getElementById('ctxMyPlaylistItem').classList.remove('sub-open');
+        document.getElementById('ctxSongSection').style.display = 'block';
+        document.getElementById('ctxPlaylistSection').style.display = 'none';
     }
 
     document.addEventListener('click', (e) => {
@@ -288,7 +295,71 @@
         }
     }
 
-    function closeInfoModal() {
+    
+
+// ── 歌单上下文菜单（侧边栏右键 / "更多" 按钮） ──
+let _ctxPlaylistId = null;
+
+function ctxPlPlay() {
+    hideContextMenu();
+    if (_ctxPlaylistId) playMyPlaylistById(_ctxPlaylistId);
+}
+function ctxPlRename() {
+    hideContextMenu();
+    if (_ctxPlaylistId) renameMyPlaylistById(_ctxPlaylistId);
+}
+function ctxPlShare() {
+    hideContextMenu();
+    if (_ctxPlaylistId) shareMyPlaylistById(_ctxPlaylistId);
+}
+function ctxPlDownload() {
+    hideContextMenu();
+    if (_ctxPlaylistId) startDownloadPlaylist(_ctxPlaylistId);
+}
+function ctxPlDelete() {
+    hideContextMenu();
+    if (_ctxPlaylistId) deleteMyPlaylistById(_ctxPlaylistId);
+}
+
+function openPlaylistCtxMenu(event, plId) {
+    event.preventDefault();
+    event.stopPropagation();
+    _ctxPlaylistId = plId;
+    _populatePlaylistCtxMenu();
+    const menu = document.getElementById('ctxMenu');
+    menu.style.display = 'block';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let x = event.clientX, y = event.clientY;
+    if (x + mw > vw) x = vw - mw - 8;
+    if (y + mh > vh) y = vh - mh - 8;
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    return false;
+}
+
+function openPlaylistCtxMenuByBtn(event, plId) {
+    _ctxPlaylistId = plId;
+    _populatePlaylistCtxMenu();
+    const menu = document.getElementById('ctxMenu');
+    menu.style.display = 'block';
+    const rect = event.currentTarget.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let x = rect.left, y = rect.bottom + 4;
+    if (x + mw > vw) x = vw - mw - 8;
+    if (y + mh > vh) y = rect.top - mh - 4;
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
+
+function _populatePlaylistCtxMenu() {
+    const songSection = document.getElementById('ctxSongSection');
+    const plSection = document.getElementById('ctxPlaylistSection');
+    if (songSection) songSection.style.display = 'none';
+    if (plSection) plSection.style.display = 'block';
+}
+function closeInfoModal() {
         document.getElementById('infoOverlay').style.display = 'none';
     }
 

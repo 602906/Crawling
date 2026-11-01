@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import argparse
 import configparser
@@ -88,6 +88,8 @@ ALLOWED_PROXY_DOMAINS = (
     "bilivideo.com",# B 站视频 CDN
     "hdslb.com",    # B 站静态资源/CDN
     "akamaized.net",# B 站 Akamai 镜像源
+    "qq.com",       # QQ 音乐主站/音频 CDN（ws.stream.qqmusic.qq.com 等）
+    "qqmusic.qq.com", # QQ 音乐专用域名
 )
 ALLOWED_PROXY_PORTS = (80, 443)      # 代理允许的端口
 PROXY_MAX_REDIRECTS = 3              # 代理最大重定向跳数（每跳重新校验）
@@ -100,6 +102,8 @@ PROXY_REFERER_MAP = (
     ("bilivideo.com", "https://www.bilibili.com/"),
     ("hdslb.com", "https://www.bilibili.com/"),
     ("akamaized.net", "https://www.bilibili.com/"),
+    ("qq.com", "https://y.qq.com/"),
+    ("qqmusic.qq.com", "https://y.qq.com/"),
 )
 
 # ── 认证 Cookie ──
@@ -165,6 +169,21 @@ LT_ACTION_RATE_MAX = 60            # 已废弃（动作已无限速，保留仅�
 # ── 歌单 ──（改配置直接改这里，不修改即默认值）
 PLAYLIST_ENRICH_BATCH = 5          # 分享链接导入歌单：每批解析并传回客户端的歌曲数（默认 5）
                                    # 每批并发解析 8 首；批越小前端渐进刷新越平滑，越大整体越快
+
+
+# 歌单下载：向客户端输出音频的最大速度（字节/秒），默认 512KB/s，
+# 防止单一客户端长时间高占用服务器 CPU/带宽
+PLAYLIST_DOWNLOAD_BANDWIDTH = 524288
+
+
+# ── 歌词翻译 ──（改配置直接改这里，不修改即默认值）
+LYRICS_TRANSLATION_ENABLED = True      # 歌词翻译总开关：关闭后所有平台都不再自动翻译
+LYRICS_TRANSLATION_NON_CHINESE_RATIO = 0.7  # 非中文占比≤此值时触发翻译（0~1）
+LYRICS_TRANSLATION_ENGINE_TIMEOUT = 10 # 单次翻译网络请求超时（秒）
+LYRICS_TRANSLATION_BATCH_SIZE = 20     # 整段翻译每批最大行数
+LYRICS_TRANSLATION_LINE_TIMEOUT = 8    # 逐行回退时单行超时（秒）
+LYRICS_TRANSLATE_CACHE_MAX = 500       # 翻译结果缓存上限条数
+LYRICS_TRANSLATE_CACHE_EVICT_RATIO = 0.1  # 缓存淘汰比例（每次淘汰 10%）
 
 
 # 请求体（JSON 等）大小上限：防超大包内存耗尽（DoS），超过直接 413

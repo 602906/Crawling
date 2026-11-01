@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block head %}
 <link rel="stylesheet" href="/static/css/search.css">
@@ -56,13 +56,22 @@
                         {% endif %}
                     </button>
                     {% endfor %}
-                    <button class="filter-btn fav-filter" data-filter="favorites" onclick="showFavorites()">♥ 收藏</button>
+                    <button class="filter-btn fav-filter" data-filter="favorites" onclick="showFavorites()">
+                        <span class="icon-text">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                            收藏
+                        </span>
+                    </button>
                 </div>
             </div>
 
             <div class="results-container" id="resultsContainer">
                 <div class="empty-state" id="emptyState">
-                    <div class="empty-icon">&#9835;</div>
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                        </svg>
+                    </div>
                     <p>输入关键词开始搜索</p>
                     <div class="site-footer">
                         <span>项目地址</span>
@@ -86,15 +95,24 @@
 <div class="lyrics-panel hidden" id="lyricsPanel">
     <div class="lyrics-header">
         <span class="lyrics-title" id="lyricsTitle">歌词</span>
+        <button class="lyrics-translate-toggle" id="lyricsTranslateToggle" onclick="toggleLyricsTranslation()" title="切换翻译显示" style="display:none;">
+            <svg viewBox="0 0 1024 1024" width="18" height="18" fill="currentColor">
+                <path d="M608 416h288c35.36 0 64 28.48 64 64v416c0 35.36-28.48 64-64 64H480c-35.36 0-64-28.48-64-64v-288H128c-35.36 0-64-28.48-64-64V128c0-35.36 28.48-64 64-64h416c35.36 0 64 28.48 64 64v288z m0 64v64c0 35.36-28.48 64-64 64h-64v256.032c0 17.664 14.304 31.968 31.968 31.968H864a31.968 31.968 0 0 0 31.968-31.968V512a31.968 31.968 0 0 0-31.968-31.968H608zM128 159.968V512c0 17.664 14.304 31.968 31.968 31.968H512a31.968 31.968 0 0 0 31.968-31.968V160A31.968 31.968 0 0 0 512.032 128H160A31.968 31.968 0 0 0 128 159.968z m64 244.288V243.36h112.736V176h46.752c6.4 0.928 9.632 1.824 9.632 2.752a10.56 10.56 0 0 1-1.376 4.128c-2.752 7.328-4.128 16.032-4.128 26.112v34.368h119.648v156.768h-50.88v-20.64h-68.768v118.272H306.112v-118.272H238.752v24.768H192z m46.72-122.368v60.48h67.392V281.92H238.752z m185.664 60.48V281.92h-68.768v60.48h68.768z m203.84 488H576L668.128 576h64.64l89.344 254.4h-54.976l-19.264-53.664h-100.384l-19.232 53.632z m33.024-96.256h72.864l-34.368-108.608h-1.376l-37.12 108.608zM896 320h-64a128 128 0 0 0-128-128V128a192 192 0 0 1 192 192zM128 704h64a128 128 0 0 0 128 128v64a192 192 0 0 1-192-192z"/>
+            </svg>
+        </button>
         <div class="lyrics-export" id="lyricsExport" style="display:none;">
-            <button class="lyrics-export-btn" onclick="toggleLyricsExportMenu(event)" title="导出歌词">&#10515;</button>
+            <button class="lyrics-export-btn" onclick="toggleLyricsExportMenu(event)" title="导出歌词">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            </button>
             <div class="lyrics-export-menu" id="lyricsExportMenu">
                 <div class="lyrics-export-item" onclick="copyLyricsText()">复制完整歌词</div>
                 <div class="lyrics-export-item" onclick="downloadLrcFile()">下载 LRC 歌词</div>
                 <div class="lyrics-export-item" id="lyricsExportTranslated" style="display:none;" onclick="downloadLrcTranslated()">下载 LRC 歌词(翻译)</div>
             </div>
         </div>
-        <button class="lyrics-close" onclick="toggleLyrics()">&#10005;</button>
+        <button class="lyrics-close" onclick="toggleLyrics()" title="关闭">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
     </div>
     <div class="lyrics-content" id="lyricsContent">
         <p class="lyrics-empty">播放歌曲后显示歌词</p>
@@ -109,7 +127,12 @@
     <div class="playlist-header">
         <span>播放列表 (<span id="playlistCount">0</span>)</span>
         <div style="display:flex;gap:4px;align-items:center;">
-            <button class="mode-btn active" id="modeBtn" onclick="cyclePlayMode()" title="顺序播放"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg> 顺序播放</button>
+            <button class="mode-btn active" id="modeBtn" onclick="cyclePlayMode()" title="顺序播放">
+                <span class="icon-text">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/></svg>
+                    顺序播放
+                </span>
+            </button>
             <button class="playlist-clear" onclick="clearPlaylist()" title="清空列表"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
             <button class="playlist-close" onclick="togglePlaylist()" title="关闭"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
         </div>
@@ -167,29 +190,102 @@
 </div>
 
 <div class="ctx-menu" id="ctxMenu" style="display:none;">
-    <div class="ctx-item" onclick="ctxPlay()">&#9654; 播放</div>
-    <div class="ctx-item" onclick="ctxAddToPlaylist()">+ 添加到播放列表</div>
-    <div class="ctx-item ctx-has-sub" id="ctxMyPlaylistItem">
-        + 添加到歌单 <span class="ctx-arrow">&#9656;</span>
-        <div class="ctx-submenu" id="ctxMyPlaylistSub"></div>
+    <div id="ctxSongSection">
+        <div class="ctx-item" onclick="ctxPlay()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                播放
+            </span>
+        </div>
+        <div class="ctx-item" onclick="ctxAddToPlaylist()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                添加到播放列表
+            </span>
+        </div>
+        <div class="ctx-item ctx-has-sub" id="ctxMyPlaylistItem">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                添加到歌单
+            </span>
+            <span class="ctx-arrow"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></span>
+            <div class="ctx-submenu" id="ctxMyPlaylistSub"></div>
+        </div>
+        <div class="ctx-item" onclick="ctxToggleFav()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                <span id="ctxFavText">收藏</span>
+            </span>
+        </div>
+        <div class="ctx-separator"></div>
+        <div class="ctx-item ctx-has-sub" id="ctxDownloadItem">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                下载
+            </span>
+            <span class="ctx-arrow"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></span>
+            <div class="ctx-submenu" id="ctxDownloadSub"></div>
+        </div>
+        <div class="ctx-separator"></div>
+        <div class="ctx-item" onclick="ctxAnalyze()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                歌曲信息
+            </span>
+        </div>
+        <div class="ctx-item" onclick="ctxShare()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor"><path d="M893.553778 329.557333l-142.222222-142.222222-0.568889-0.568889a56.888889 56.888889 0 0 0-79.872 81.009778l45.112889 45.112889H654.222222q-129.592889 0-221.297778 91.591111Q341.333333 496.241778 341.333333 625.777778a56.888889 56.888889 0 0 0 113.777778 0q0-82.488889 58.311111-140.8Q571.733333 426.666667 654.222222 426.666667h61.781334l-45.112889 45.112889a56.888889 56.888889 0 1 0 80.497777 80.440888l142.222223-142.222222a56.888889 56.888889 0 0 0-0.056889-80.440889zM284.444444 910.222222h540.444445a56.888889 56.888889 0 1 0 0-113.777778H284.444444q-23.552 0-40.220444-16.668444T227.555556 739.555556V341.333333a56.888889 56.888889 0 0 0-113.777778 0v398.222223q0 70.712889 50.005333 120.661333Q213.731556 910.222222 284.444444 910.222222z"/></svg>
+                分享
+            </span>
+        </div>
+        <div class="ctx-item" id="ctxShareAtItem" style="display:none;" onclick="ctxShareAt()">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor"><path d="M893.553778 329.557333l-142.222222-142.222222-0.568889-0.568889a56.888889 56.888889 0 0 0-79.872 81.009778l45.112889 45.112889H654.222222q-129.592889 0-221.297778 91.591111Q341.333333 496.241778 341.333333 625.777778a56.888889 56.888889 0 0 0 113.777778 0q0-82.488889 58.311111-140.8Q571.733333 426.666667 654.222222 426.666667h61.781334l-45.112889 45.112889a56.888889 56.888889 0 1 0 80.497777 80.440888l142.222223-142.222222a56.888889 56.888889 0 0 0-0.056889-80.440889zM284.444444 910.222222h540.444445a56.888889 56.888889 0 1 0 0-113.777778H284.444444q-23.552 0-40.220444-16.668444T227.555556 739.555556V341.333333a56.888889 56.888889 0 0 0-113.777778 0v398.222223q0 70.712889 50.005333 120.661333Q213.731556 910.222222 284.444444 910.222222z"/></svg>
+                从当前播放处分享
+            </span>
+        </div>
     </div>
-    <div class="ctx-item" onclick="ctxToggleFav()"><span id="ctxFavText">♥ 收藏</span></div>
-    <div class="ctx-separator"></div>
-    <div class="ctx-item ctx-has-sub" id="ctxDownloadItem">
-        &#8681; 下载 <span class="ctx-arrow">&#9656;</span>
-        <div class="ctx-submenu" id="ctxDownloadSub"></div>
+
+    <div id="ctxPlaylistSection" style="display:none;">
+        <div class="ctx-item" onclick="ctxPlPlay()" title="播放全部">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                播放全部
+            </span>
+        </div>
+        <div class="ctx-item" onclick="ctxPlRename()" title="重命名">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                重命名
+            </span>
+        </div>
+        <div class="ctx-item" onclick="ctxPlDownload()" title="下载全部">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                下载全部
+            </span>
+        </div>
+        <div class="ctx-item" onclick="ctxPlShare()" title="分享">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M893.553778 329.557333l-142.222222-142.222222-0.568889-0.568889a56.888889 56.888889 0 0 0-79.872 81.009778l45.112889 45.112889H654.222222q-129.592889 0-221.297778 91.591111Q341.333333 496.241778 341.333333 625.777778a56.888889 56.888889 0 0 0 113.777778 0q0-82.488889 58.311111-140.8Q571.733333 426.666667 654.222222 426.666667h61.781334l-45.112889 45.112889a56.888889 56.888889 0 1 0 80.497777 80.440888l142.222223-142.222222a56.888889 56.888889 0 0 0-0.056889-80.440889zM284.444444 910.222222h540.444445a56.888889 56.888889 0 1 0 0-113.777778H284.444444q-23.552 0-40.220444-16.668444T227.555556 739.555556V341.333333a56.888889 56.888889 0 0 0-113.777778 0v398.222223q0 70.712889 50.005333 120.661333Q213.731556 910.222222 284.444444 910.222222z"/></svg>
+                分享
+            </span>
+        </div>
+        <div class="ctx-item ctx-item-danger" onclick="ctxPlDelete()" title="删除歌单">
+            <span class="ctx-icon-text">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                删除歌单
+            </span>
+        </div>
     </div>
-    <div class="ctx-separator"></div>
-    <div class="ctx-item" onclick="ctxAnalyze()">&#8505; 歌曲信息</div>
-    <div class="ctx-item" onclick="ctxShare()">&#8599; 分享</div>
-    <div class="ctx-item" id="ctxShareAtItem" style="display:none;" onclick="ctxShareAt()">&#8599; 从当前播放处分享</div>
 </div>
 
 <div class="info-overlay" id="infoOverlay" onclick="if(event.target===this)closeInfoModal()">
     <div class="info-modal">
         <div class="info-modal-header">
             <span class="info-modal-title">歌曲信息</span>
-            <button class="info-modal-close" onclick="closeInfoModal()">&#10005;</button>
+            <button class="info-modal-close" onclick="closeInfoModal()" title="关闭"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
         </div>
         <div class="info-modal-body" id="infoModalBody"></div>
     </div>
@@ -199,7 +295,7 @@
     <div class="playlist-sidebar-import-modal">
         <div class="playlist-sidebar-import-header">
             <span class="playlist-sidebar-import-title">导入歌单</span>
-            <button class="playlist-sidebar-import-close" onclick="closeImportModal()">&#10005;</button>
+            <button class="playlist-sidebar-import-close" onclick="closeImportModal()" title="关闭"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
         </div>
         <div class="playlist-sidebar-import-body">
             <div class="playlist-sidebar-import-field">
@@ -207,6 +303,7 @@
                 <select id="playlistSidebarImportPlatform" class="playlist-sidebar-import-select">
                     <option value="netease">网易云音乐</option>
                     <option value="kugou">酷狗音乐</option>
+                    <option value="qqmusic">QQ 音乐</option>
                 </select>
             </div>
             <div class="playlist-sidebar-import-field">
@@ -254,4 +351,3 @@
 <script src="/static/js/playlist.sidebar.history.js"></script>
 <script src="/static/js/equalizer.js"></script>
 {% endblock %}
-

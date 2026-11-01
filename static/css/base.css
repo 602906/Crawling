@@ -160,3 +160,16 @@ a:hover { color: var(--accent-hover); }
     display: none;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* 图标 + 文字：用 flex 居中，消除 SVG 的 baseline 偏移（图标视觉上不再比文字高） */
+.icon-text,
+.ctx-icon-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.icon-text svg,
+.ctx-icon-text svg {
+    flex-shrink: 0;
+    display: block;
+}

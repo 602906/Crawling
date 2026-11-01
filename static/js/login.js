@@ -210,12 +210,31 @@
                 document.getElementById('sendCodeBtn').style.display = 'none';
                 document.getElementById('phoneLoginBtn').style.display = 'inline-block';
                 showResult(true, '验证码已发送');
+            } else if (data.need_captcha && data.captcha_url) {
+                // 人机验证：在新标签页打开，完成后重新点击「发送验证码」
+                showResult(false, '需要完成安全验证');
+                showCaptchaHint(data.captcha_url);
             } else {
                 showResult(false, data.msg);
             }
         } catch (e) {
             showResult(false, '发送失败: ' + e.message);
         }
+    }
+
+    // ── 人机验证提示 ──
+    function showCaptchaHint(url) {
+        const codeGroup = document.getElementById('codeGroup');
+        let box = document.getElementById('captchaHintBox');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'captchaHintBox';
+            box.className = 'form-hint';
+            codeGroup.parentNode.insertBefore(box, codeGroup.nextSibling);
+        }
+        box.innerHTML = '点击下方链接完成安全验证，验证完成后重新点击「发送验证码」<br>'
+            + `<a href="${url}" target="_blank" rel="noopener noreferrer" `
+            + `style="color:var(--accent);word-break:break-all;">${url}</a>`;
     }
 
     async function loginWithPhone() {
